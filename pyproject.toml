@@ -1,0 +1,76 @@
+[tool.poetry]
+name = "tesla-smart-charger"
+version = "0.1.0"
+description = "Dynamic charge your tesla using default charger"
+authors = ["Pedro Baptista <pedro.miguel.baptista@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.31.0"
+fastapi = "^0.104.1"
+uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.11.0"
+pytest = "^7.4.3"
+ruff = "^0.1.6"
+pytest-cov = "^4.1.0"
+tox = "^4.11.4"
+httpx = "^0.25.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# Configurations for black
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+extend-ignore = "E203,E501"
+
+# Configurations for pytest
+[tool.pytest]
+addopts = ["-ra", "--cov=your_project_name", "--cov-report=term-missing"]
+testpaths = ["tests"]
+
+[toolpytest.cov]
+fail_under = 80
+
+# Configurations for tox
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    envlist = py310, lint
+    skipsdist = True
+    skip_missing_interpreters = True
+
+    [testenv]
+    deps =
+        poetry
+    commands =
+        poetry install -v
+        poetry run pytest --cov=tesla_smart_charger --cov-report=term-missing
+    
+    [testenv:lint]
+    deps =
+        ruff
+    commands =
+        ruff tesla_smart_charger tests
+
+"""
