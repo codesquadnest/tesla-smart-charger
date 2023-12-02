@@ -5,9 +5,22 @@ description = "Dynamic charge your tesla using default charger"
 authors = ["Pedro Baptista <pedro.miguel.baptista@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+keywords = ["tesla", "smart", "charger"]
+include = ["pyproject.toml", "LICENSE", "README.md"]
+exclude = ["tests/*"]
+packages = [{include = "tesla_smart_charger"}]
+
+[project.urls]
+homepage = "https://github.com/codesquadnest/tesla-smart-charger"
+repository = "https://github.com/codesquadnest/tesla-smart-charger"
+changelog = "https://github.com/codesquadnest/tesla-smart-charger/releases"
+documentation = "https://github.com/codesquadnest/tesla-smart-charger/blob/main/README.md"
+
+[tool.poetry.scripts]
+tesla_smart_charger = "tesla_smart_charger.__main__:main"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.8, <4.0"
 requests = "^2.31.0"
 fastapi = "^0.104.1"
 uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
@@ -27,7 +40,7 @@ build-backend = "poetry.core.masonry.api"
 # Configurations for black
 [tool.black]
 line-length = 88
-target-version = ["py38"]
+target-version = ["py310"]
 include = '\.pyi?$'
 exclude = '''
 /(
