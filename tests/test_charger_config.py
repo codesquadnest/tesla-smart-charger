@@ -1,12 +1,12 @@
 """
-Tests for the tesla_config module.
+Tests for the charger_config module.
 """
 
 import json
 
 import pytest
 
-from tesla_smart_charger.tesla_config import TeslaConfig
+from tesla_smart_charger.charger_config import ChargerConfig
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def test_load_config(config_file):
     """
     Test loading the config file.
     """
-    tesla_config = TeslaConfig(config_file)
+    tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     assert tesla_config.get_config() == {
         "maxPower": 11.0,
@@ -46,7 +46,7 @@ def test_load_config_file_not_found():
     """
     Test loading a config file that does not exist.
     """
-    tesla_config = TeslaConfig("missing_config.json")
+    tesla_config = ChargerConfig("missing_config.json")
     assert tesla_config.load_config()["error"].startswith("Config file not found:")
 
 
@@ -57,7 +57,7 @@ def test_load_config_file_not_valid_json(tmp_path):
     config_file = tmp_path / "config.json"
     with open(config_file, "w") as file:
         file.write("not valid json")
-    tesla_config = TeslaConfig(config_file)
+    tesla_config = ChargerConfig(config_file)
     assert tesla_config.load_config()["error"].startswith(
         "Config file is not valid JSON:"
     )
@@ -70,7 +70,7 @@ def test_load_config_file_missing_required_key(tmp_path):
     config_file = tmp_path / "config.json"
     with open(config_file, "w") as file:
         json.dump({"maxPower": 11.0}, file, indent=4)
-    tesla_config = TeslaConfig(config_file)
+    tesla_config = ChargerConfig(config_file)
     assert tesla_config.load_config()["error"].startswith(
         "Config file is not valid: Config file is missing required key: minPower"
     )
@@ -79,7 +79,7 @@ def test_get_config(config_file):
     """
     Test getting the config.
     """
-    tesla_config = TeslaConfig(config_file)
+    tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     assert tesla_config.get_config() == {
         "maxPower": 11.0,
@@ -94,7 +94,7 @@ def test_set_config(config_file):
     """
     Test setting the config.
     """
-    tesla_config = TeslaConfig(config_file)
+    tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     tesla_config.set_config(
         {
@@ -134,7 +134,7 @@ def test_set_config_missing_required_key(config_file):
     """
     Test setting the config with a config that is missing a required key.
     """
-    tesla_config = TeslaConfig(config_file)
+    tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     assert tesla_config.set_config({"maxPower": 11.0})["error"].startswith(
         "Config is not valid: Config file is missing required key: minPower"
@@ -145,7 +145,7 @@ def test_validate_config():
     """
     Test validating a config.
     """
-    tesla_config = TeslaConfig("config.json")
+    tesla_config = ChargerConfig("config.json")
     tesla_config.load_config()
     tesla_config.validate_config(
         {

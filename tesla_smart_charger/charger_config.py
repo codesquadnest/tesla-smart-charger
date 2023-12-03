@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import tesla_smart_charger.constants as constants
 
 
-class TeslaConfig:
+class ChargerConfig:
     """Configurator class for Tesla Smart Charger.
 
     Attributes:
