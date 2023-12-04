@@ -1,1 +1,9 @@
-"{\"maxPower\":7.0,\"minPower\":0.0,\"downStep\":0.5,\"upStep\":0.1,\"teslaToken\":\"token\"}"
+{
+    "maxPower": 5.0,
+    "minPower": 0.0,
+    "downStep": 0.5,
+    "upStep": 0.1,
+    "vehicleId": "vehicleId",
+    "accessToken": "accessToken",
+    "refreshToken": "refreshToken"
+}

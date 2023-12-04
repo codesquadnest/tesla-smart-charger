@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 import tesla_smart_charger.constants as constants
 from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.tesla_api import TeslaAPI
 from tesla_smart_charger.token_cron import start_cron_job
 
 
@@ -24,7 +25,9 @@ class Config(BaseModel):
     minPower: float
     downStep: float
     upStep: float
-    teslaToken: str
+    vehicleId: str
+    accessToken: str
+    refreshToken: str
 
 
 # Create the FastAPI app
@@ -74,7 +77,31 @@ def read_root():
 # Total consumption of the house exceeds the power limit
 @app.post("/overload")
 def overload():
-    return {"status": "ok"}
+    vehicle_data = tesla_api.get_vehicle_data()
+    print(vehicle_data)
+
+    if "error" in vehicle_data:
+        raise HTTPException(status_code=500, detail=vehicle_data["error"])
+
+    if (
+        vehicle_data["response"]["state"] == "online"
+        and vehicle_data["response"]["charge_state"]["charging_state"] == "Charging"
+    ):
+        # Get the current charge limit
+        charger_actual_current = vehicle_data["response"]["charge_state"][
+            "charger_actual_current"
+        ]
+
+        # Calculate the new charge limit
+        new_charge_limit = charger_actual_current * tesla_config.config["downStep"]
+
+        # Set the new charge limit
+        response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
+
+        if "error" in response:
+            raise HTTPException(status_code=500, detail=response["error"])
+
+        return response
 
 
 # Total consumption of the house is below the power limit
@@ -108,6 +135,9 @@ if __name__ == "__main__":
     # Create the charger config object
     tesla_config = ChargerConfig(constants.CONFIG_FILE)
     tesla_config.load_config()
+
+    # Create the Tesla API object
+    tesla_api = TeslaAPI(tesla_config)
 
     # Create an event to signal the cron job to stop
     stop_event = threading.Event()

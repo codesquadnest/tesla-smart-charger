@@ -74,9 +74,9 @@ class ChargerConfig:
         """
         try:
             self.validate_config(config)
-            self.config = config
             with open(self.config_file, "w") as file:
-                json.dump(self.config, file, indent=4)
+                file.write(config)
+            self.load_config()
             return self.config
         except ValueError as error:
             return {"error": f"Config is not valid: {error}"}
