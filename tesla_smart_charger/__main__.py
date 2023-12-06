@@ -16,6 +16,7 @@ import tesla_smart_charger.constants as constants
 from tesla_smart_charger.charger_config import ChargerConfig
 from tesla_smart_charger.tesla_api import TeslaAPI
 from tesla_smart_charger.token_cron import start_cron_job
+from tesla_smart_charger.handlers.overload_handler import handle_overload
 
 
 class Config(BaseModel):
@@ -25,6 +26,7 @@ class Config(BaseModel):
     minPower: float
     downStep: float
     upStep: float
+    sleepTime: int
     vehicleId: str
     accessToken: str
     refreshToken: str
@@ -100,6 +102,12 @@ def overload():
 
         if "error" in response:
             raise HTTPException(status_code=500, detail=response["error"])
+        else:
+            # Start the overload handler in a separate thread
+            overload_thread = threading.Thread(
+                target=handle_overload, name="handle_overload_thread"
+            )
+            overload_thread.start()
 
         return response
 

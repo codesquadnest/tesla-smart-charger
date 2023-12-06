@@ -19,4 +19,4 @@ RUN pip install --no-cache-dir poetry
 RUN poetry config virtualenvs.create false \
     && poetry install --no-dev --no-interaction --no-ansi
 
-CMD ["uvicorn", "tesla_smart_charger.main:app", "--port", "$API_PORT","--reload"]
+CMD ["tesla-smart-charger"]

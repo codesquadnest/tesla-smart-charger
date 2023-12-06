@@ -1,9 +1,10 @@
 {
-    "maxPower": 5.0,
-    "minPower": 0.0,
-    "downStep": 0.5,
-    "upStep": 0.1,
-    "vehicleId": "vehicleId",
-    "accessToken": "accessToken",
-    "refreshToken": "refreshToken"
+    "maxPower": "5.0",
+    "minPower": "0.0",
+    "downStep": "0.5",
+    "upStep": "0.1",
+    "sleepTime": "300",
+    "vehicleId": "1234567890",
+    "accessToken": "1234567890",
+    "refreshToken": "0987654321"
 }

@@ -17,10 +17,11 @@ def config_file(tmp_path: str) -> str:
     Create a temporary config file.
     """
     config = {
-        "maxPower": 11.0,
-        "minPower": 6.0,
-        "downStep": 0.5,
-        "upStep": 0.5,
+        "maxPower": "11.0",
+        "minPower": "6.0",
+        "downStep": "0.5",
+        "upStep": "0.5",
+        "sleepTime": "300",
         "vehicleId": "1234567890",
         "accessToken": "1234567890",
         "refreshToken": "0987654321",
@@ -38,10 +39,11 @@ def test_load_config(config_file: str) -> None:
     tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     assert tesla_config.get_config() == {
-        "maxPower": 11.0,
-        "minPower": 6.0,
-        "downStep": 0.5,
-        "upStep": 0.5,
+        "maxPower": "11.0",
+        "minPower": "6.0",
+        "downStep": "0.5",
+        "upStep": "0.5",
+        "sleepTime": "300",
         "vehicleId": "1234567890",
         "accessToken": "1234567890",
         "refreshToken": "0987654321",
@@ -89,10 +91,11 @@ def test_get_config(config_file: str) -> None:
     tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     assert tesla_config.get_config() == {
-        "maxPower": 11.0,
-        "minPower": 6.0,
-        "downStep": 0.5,
-        "upStep": 0.5,
+        "maxPower": "11.0",
+        "minPower": "6.0",
+        "downStep": "0.5",
+        "upStep": "0.5",
+        "sleepTime": "300",
         "vehicleId": "1234567890",
         "accessToken": "1234567890",
         "refreshToken": "0987654321",
@@ -113,6 +116,7 @@ def test_set_config(config_file: str) -> None:
         minPower: float
         downStep: float
         upStep: float
+        sleepTime: int
         vehicleId: str
         accessToken: str
         refreshToken: str
@@ -122,6 +126,7 @@ def test_set_config(config_file: str) -> None:
         minPower=5.0,
         downStep=0.5,
         upStep=0.5,
+        sleepTime=300,
         vehicleId="1234567890",
         accessToken="1234567890",
         refreshToken="0987654321",
@@ -133,6 +138,7 @@ def test_set_config(config_file: str) -> None:
         "minPower": 5.0,
         "downStep": 0.5,
         "upStep": 0.5,
+        "sleepTime": 300,
         "vehicleId": "1234567890",
         "accessToken": "1234567890",
         "refreshToken": "0987654321",
@@ -162,6 +168,7 @@ def test_validate_config() -> None:
             "minPower": 6.0,
             "downStep": 0.5,
             "upStep": 0.5,
+            "sleepTime": 300,
             "vehicleId": "1234567890",
             "accessToken": "1234567890",
             "refreshToken": "0987654321",

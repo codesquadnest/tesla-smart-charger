@@ -7,10 +7,11 @@ CONFIG_FILE = "config.json"
 
 # Default configuration
 DEFAULT_CONFIG = {
-    "maxPower": 13.0,
-    "minPower": 6.0,
-    "downStep": 0.5,
-    "upStep": 0.25,
+    "maxPower": "13.0",
+    "minPower": "6.0",
+    "downStep": "0.5",
+    "upStep": "0.25",
+    "sleepTime": "300",
     "vehicleId": "1234567890",
     "accessToken": "1234567890",
     "refreshToken": "0987654321",
@@ -22,6 +23,7 @@ REQUIRED_CONFIG_KEYS = [
     "minPower",
     "downStep",
     "upStep",
+    "sleepTime",
     "vehicleId",
     "accessToken",
     "refreshToken",
