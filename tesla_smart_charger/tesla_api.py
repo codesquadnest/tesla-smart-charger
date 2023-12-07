@@ -71,7 +71,7 @@ class TeslaAPI:
         print(vehicle_response)
 
         # Return the vehicle data
-        return vehicle_response["response"][0]
+        return vehicle_response["response"]
 
     def set_charge_amp_limit(self: object, amp_limit: int) -> dict:
         """Set the charge Amperage limit.

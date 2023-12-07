@@ -2,8 +2,6 @@
 Handles the overload of the charger
 """
 
-import json
-import requests
 import time
 
 import tesla_smart_charger.constants as constants
@@ -20,14 +18,13 @@ def handle_overload():
     """
     tesla_config.load_config()
     # Sleep duration in seconds according to the config file
-    time.sleep(int(tesla_config.config["sleepTime"]))
+    # time.sleep(int(tesla_config.config["sleepTime"]))
+    time.sleep(10)
 
     # Get the current vehicle data
-    vehicle_data = tesla_api.get_vehicle_data()
+    # vehicle_data = tesla_api.get_vehicle_data()
 
-    # Check if the vehicle is charging
-    
+    # TODO: Handle the overload of the charger
+    # print(vehicle_data)
+    print("Overload handled!")
 
-
-if __name__ == "__main__":
-    handle_overload()
