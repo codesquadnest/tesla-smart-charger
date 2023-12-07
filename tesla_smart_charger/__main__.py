@@ -4,6 +4,7 @@ Tesla smart car charger
 This script is the main entry point for the Tesla smart car charger.
 """
 
+import argparse
 import atexit
 import threading
 import uvicorn
@@ -14,9 +15,10 @@ from pydantic import BaseModel
 
 import tesla_smart_charger.constants as constants
 from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.handlers.overload_handler import handle_overload
 from tesla_smart_charger.tesla_api import TeslaAPI
 from tesla_smart_charger.token_cron import start_cron_job
-from tesla_smart_charger.handlers.overload_handler import handle_overload
+from tesla_smart_charger import utils
 
 
 class Config(BaseModel):
@@ -154,6 +156,28 @@ def set_config(config: Config):
 
 
 def main():
+
+    # Parse the command line arguments
+    parser = argparse.ArgumentParser(
+        description="Tesla smart car charger",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "vehicles",
+        help="Get the list of vehicles from the Tesla API",
+    )
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    if args.vehicles:
+        # Get the vehicles from the Tesla API
+        vehicles = tesla_api.get_vehicles()
+        utils.show_vehicles(vehicles)
+        # Exit the application
+        exit(0)
+
+
     # Start the FastAPI server
     uvicorn.run(app=app, host="0.0.0.0", port=8000)
 

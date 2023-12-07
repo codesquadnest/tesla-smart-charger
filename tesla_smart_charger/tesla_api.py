@@ -45,7 +45,7 @@ class TeslaAPI:
             },
         )
         vehicle_response = json.loads(vehicle_request.text)
-        print(vehicle_response)
+        # print(vehicle_response)
 
         # Return the vehicles
         return vehicle_response["response"]
@@ -68,7 +68,7 @@ class TeslaAPI:
             },
         )
         vehicle_response = json.loads(vehicle_request.text)
-        print(vehicle_response)
+        # print(vehicle_response)
 
         # Return the vehicle data
         return vehicle_response["response"]

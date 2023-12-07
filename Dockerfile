@@ -6,14 +6,14 @@ EXPOSE $API_PORT
 
 WORKDIR /app
 
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata gcc libc-dev libffi-dev
 ENV TZ=Europe/Lisbon
+
+COPY . .
 
 RUN pip install --no-cache-dir --upgrade pip
 
 RUN pip install --no-cache-dir poetry
-
-COPY . /app
 
 RUN poetry config virtualenvs.create false \
     && poetry install --no-dev --no-interaction --no-ansi

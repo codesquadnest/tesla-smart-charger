@@ -11,22 +11,37 @@ Dynamic charging control for your Tesla using the default charger.
    ```
 
 2. **Configuration:**
-   Edit the `config.json` file with your specific settings:
+   
+   Fill the configuration with your specific settings:
+   - `maxPower`: Maximum power in kW that the charger can use.
+   - `minPower`: Minimum power in kW that the charger can use.
+   - `downStep`: Percentage of power reduction when overload is detected.
+   - `upStep`: Percentage of power increase when overload is not detected.
+   - `sleepTime`: Time in seconds between each check after overload is detected.
+   - `vehicleId`: Vehicle ID obtained from the Tesla API.
+   - `accessToken`: Access token obtained from the Tesla API.
+   - `refreshToken`: Refresh token obtained from the Tesla API.
+
+   The configuration file is located at `config.json` and should look like this:
    ```json
    {
-       "maxPower": "20.0",
-       "minPower": "0.0",
-       "downStep": "0.5",
-       "upStep": "0.1",
-       "sleepTime": "300",
-       "vehicleId": "vehicleId",
-       "accessToken": "accessToken",
-       "refreshToken": "refreshToken"
+       "maxPower": 7.4,
+       "minPower": 1.0,
+       "downStep": 0.5,
+       "upStep": 0.25,
+       "sleepTime": 60,
+       "vehicleId": "12345678901234567",
+       "accessToken": "12345678901234567",
+       "refreshToken": "12345678901234567"
    }
+   
    ```
    Make sure to obtain the required tokens by following the instructions [here](https://github.com/adriankumpf/tesla_auth).
 
-   While we don't implement an automated way to get VehicleID use the following ref [here]([https://github.com/adriankumpf/tesla_auth](https://developer.tesla.com/docs/fleet-api?shell#list)).
+   Get your vehicle ID by executing the following command:
+   ```bash
+   tesla-smart-charger vehicles
+   ```
 
 
 3. **Energy monitor configuration:**
