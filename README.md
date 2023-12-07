@@ -14,23 +14,38 @@ Dynamic charging control for your Tesla using the default charger.
    Edit the `config.json` file with your specific settings:
    ```json
    {
-       "maxPower": "5.0",
+       "maxPower": "20.0",
        "minPower": "0.0",
        "downStep": "0.5",
        "upStep": "0.1",
        "sleepTime": "300",
-       "vehicleId": "1234567890",
-       "accessToken": "1234567890",
-       "refreshToken": "0987654321"
+       "vehicleId": "vehicleId",
+       "accessToken": "accessToken",
+       "refreshToken": "refreshToken"
    }
    ```
    Make sure to obtain the required tokens by following the instructions [here](https://github.com/adriankumpf/tesla_auth).
 
-3. **Execution:**
+   While we don't implement an automated way to get VehicleID use the following ref [here]([https://github.com/adriankumpf/tesla_auth](https://developer.tesla.com/docs/fleet-api?shell#list)).
+
+
+3. **Energy monitor configuration:**
+   Configure you Energy Monitor to hit the `<tesla-smart-charger>/overload` endpoint when power consumption goes above the configured limit.
+
+4. **Execution:**
    Run the Tesla Smart Charger:
    ```bash
    tesla-smart-charger
    ```
+
+   To test your configuration you can call (GET) `<tesla-smart-charger>/config`
+
+   The default behavior, with no extra configuration, is that the charging amps will be reduced by the `downStep` configuration. For example, if `downStep` is set to 0.5, the charging amps will be configured to half of the current amps. If it's set to 0.25, it will be configured to 25% of the current amps.
+
+   Importantly, Tesla Smart Charger will never send wake-up commands to the car. It will only be triggered when the car is online and charging. It's not expected to cause any battery drains.
+
+5. **Dynamic Charging Sessions:**
+   The to-do section includes the configuration of dynamic charging sessions triggered when an overload is detected. To achieve this, a power monitor, such as Shelly EM, is required to fetch current power consumption.
 
 ## How to Contribute
 
@@ -49,11 +64,24 @@ We welcome contributions to enhance the functionality and features of Tesla Smar
 
 ## To-Do
 
-- Implement additional features and improvements.
+- Implement additional features and improvements, including the configuration of dynamic charging sessions when overload is triggered.
 
-## References
+## Requirements
 
-1. [Tesla API Lite](https://github.com/Marky0/tesla_api_lite)
-2. [Tesla Auth](https://github.com/adriankumpf/tesla_auth)
+- Energy monitor like Shelly EM or equivalent.
+- Trigger mechanism to hit the `<tesla-smart-charger>/overload` endpoint.
+- Any machine to execute Tesla Smart Charger.
+
+## Running with Docker
+
+1. **Build Docker Image:**
+   ```bash
+   docker build -t tesla-smart-charger:v1 .
+   ```
+
+2. **Run Docker Container:**
+   ```bash
+   docker run --rm -it -p 8000:8000 tesla-smart-charger:v1
+   ```
 
 Feel free to contribute and help make Tesla Smart Charger even better!
