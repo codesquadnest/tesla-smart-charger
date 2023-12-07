@@ -16,6 +16,7 @@ import tesla_smart_charger.constants as constants
 from tesla_smart_charger.charger_config import ChargerConfig
 from tesla_smart_charger.tesla_api import TeslaAPI
 from tesla_smart_charger.token_cron import start_cron_job
+from tesla_smart_charger.handlers.overload_handler import handle_overload
 
 
 class Config(BaseModel):
@@ -25,6 +26,7 @@ class Config(BaseModel):
     minPower: float
     downStep: float
     upStep: float
+    sleepTime: int
     vehicleId: str
     accessToken: str
     refreshToken: str
@@ -33,6 +35,16 @@ class Config(BaseModel):
 # Create the FastAPI app
 app = FastAPI()
 
+# Create the charger config object
+tesla_config = ChargerConfig(constants.CONFIG_FILE)
+tesla_config.load_config()
+
+# Create the Tesla API object
+tesla_api = TeslaAPI(tesla_config)
+
+# Create an event to signal the cron job to stop
+stop_event = threading.Event()
+
 
 # Register the startup and shutdown events
 async def startup_event():
@@ -40,7 +52,7 @@ async def startup_event():
 
     # Start the token refresh cron job in a separate thread
     cron_thread = threading.Thread(
-        target=start_cron_job, args=(stop_event,), name="token_cron_thread"
+        target=start_cron_job, args=(stop_event,), name="tsc_token_cron_thread"
     )
     cron_thread.start()
 
@@ -50,7 +62,7 @@ async def shutdown_event():
 
     # Stop the token refresh cron job
     for thread in threading.enumerate():
-        if thread.name == "token_cron_thread":
+        if thread.name == "tsc_token_cron_thread":
             # Set the event to signal the thread to stop
             stop_event.set()
             # Wait for the thread to finish
@@ -75,31 +87,41 @@ def read_root():
 
 
 # Total consumption of the house exceeds the power limit
-@app.post("/overload")
+@app.get("/overload")
 def overload():
     vehicle_data = tesla_api.get_vehicle_data()
-    print(vehicle_data)
+    # print(vehicle_data)
+
+    if vehicle_data is None:
+        raise HTTPException(status_code=500, detail="No vehicle data found")
 
     if "error" in vehicle_data:
         raise HTTPException(status_code=500, detail=vehicle_data["error"])
 
     if (
-        vehicle_data["response"]["state"] == "online"
-        and vehicle_data["response"]["charge_state"]["charging_state"] == "Charging"
+        vehicle_data["state"] == "online"
+        and vehicle_data["charge_state"]["charging_state"] == "Charging"
     ):
         # Get the current charge limit
-        charger_actual_current = vehicle_data["response"]["charge_state"][
-            "charger_actual_current"
-        ]
+        charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
 
         # Calculate the new charge limit
-        new_charge_limit = charger_actual_current * tesla_config.config["downStep"]
+        new_charge_limit = int(charger_actual_current) * float(
+            tesla_config.config["downStep"]
+        )
 
         # Set the new charge limit
         response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
 
         if "error" in response:
             raise HTTPException(status_code=500, detail=response["error"])
+        else:
+            # Start the overload handler in a separate thread
+            overload_thread = threading.Thread(
+                target=handle_overload,
+                name="tsc_handle_overload_thread",
+            )
+            overload_thread.start()
 
         return response
 
@@ -131,16 +153,10 @@ def set_config(config: Config):
     return response
 
 
-if __name__ == "__main__":
-    # Create the charger config object
-    tesla_config = ChargerConfig(constants.CONFIG_FILE)
-    tesla_config.load_config()
-
-    # Create the Tesla API object
-    tesla_api = TeslaAPI(tesla_config)
-
-    # Create an event to signal the cron job to stop
-    stop_event = threading.Event()
-
+def main():
     # Start the FastAPI server
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app=app, host="0.0.0.0", port=8000)
+
+
+if __name__ == "__main__":
+    main()

@@ -42,7 +42,7 @@ def refresh_tesla_token():
 
 def start_cron_job(stop_event: threading.Event):
     # Run the job every minute
-    schedule.every(1).minutes.do(refresh_tesla_token)
+    schedule.every(6).hours.do(refresh_tesla_token)
 
     while not stop_event.is_set():
         schedule.run_pending()

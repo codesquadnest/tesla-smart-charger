@@ -8,7 +8,9 @@ readme = "README.md"
 keywords = ["tesla", "smart", "charger"]
 include = ["pyproject.toml", "LICENSE", "README.md"]
 exclude = ["tests/*"]
-packages = [{include = "tesla_smart_charger"}]
+packages = [
+    { include = "tesla_smart_charger", from = "." },
+]
 
 [project.urls]
 homepage = "https://github.com/codesquadnest/tesla-smart-charger"
@@ -17,7 +19,7 @@ changelog = "https://github.com/codesquadnest/tesla-smart-charger/releases"
 documentation = "https://github.com/codesquadnest/tesla-smart-charger/blob/main/README.md"
 
 [tool.poetry.scripts]
-tesla_smart_charger = "tesla_smart_charger.__main__:main"
+tesla-smart-charger = "tesla_smart_charger.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.8, <4.0"

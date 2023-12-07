@@ -9,14 +9,13 @@ WORKDIR /app
 RUN apk add --no-cache tzdata
 ENV TZ=Europe/Lisbon
 
-RUN adduser -D tesla
-USER tesla
-
-COPY --chown=tesla:tesla . .
+RUN pip install --no-cache-dir --upgrade pip
 
 RUN pip install --no-cache-dir poetry
+
+COPY . /app
 
 RUN poetry config virtualenvs.create false \
     && poetry install --no-dev --no-interaction --no-ansi
 
-CMD ["uvicorn", "tesla_smart_charger.main:app", "--port", "$API_PORT","--reload"]
+CMD ["tesla-smart-charger"]
