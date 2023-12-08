@@ -13,27 +13,37 @@ Dynamic charging control for your Tesla using the default charger.
 2. **Configuration:**
    
    Fill the configuration with your specific settings:
-   - `maxPower`: Maximum power in kW that the charger can use.
-   - `minPower`: Minimum power in kW that the charger can use.
-   - `downStep`: Percentage of power reduction when overload is detected.
-   - `upStep`: Percentage of power increase when overload is not detected.
-   - `sleepTime`: Time in seconds between each check after overload is detected.
-   - `vehicleId`: Vehicle ID obtained from the Tesla API.
-   - `accessToken`: Access token obtained from the Tesla API.
-   - `refreshToken`: Refresh token obtained from the Tesla API.
+   - `homeMaxAmps`: Available power in amps that is available for the house.
+   - `chargerMaxAmps`: Maximum power in amps that the charger can use.
+   - `chargerMinAmps`: Minimum power in amps that the charger can use.
+   - `downStepPercentage`: Percentage of power reduction when overload is detected.
+   - `upStepPercentage`: Percentage of power increase when overload is not detected.
+   - `sleepTimeSecs`: Time in seconds between each check after overload is detected.
+   - `energyMonitorIp`: IP address or hostname of the Energy Monitor.
+   - `energyMonitorType`: Type of Energy Monitor. Currently only `shelly-em` is supported.
+   - `teslaVehicleId`: Vehicle ID obtained from the Tesla API.
+   - `teslaAccessToken`: Access token obtained from the Tesla API.
+   - `teslaRefreshToken`: Refresh token obtained from the Tesla API.
 
    The configuration file is located at `config.json` and should look like this:
    ```json
    {
-       "maxPower": 7.4,
-       "minPower": 1.0,
-       "downStep": 0.5,
-       "upStep": 0.25,
-       "sleepTime": 60,
-       "vehicleId": "12345678901234567",
-       "accessToken": "12345678901234567",
-       "refreshToken": "12345678901234567"
+      "homeMaxAmps": 30.0,
+      "chargerMaxAmps": 25.0,
+      "chargerMinAmps": 6.0,
+      "downStepPercentage": 0.5,
+      "upStepPercentage": 0.25,
+      "sleepTimeSecs": 60,
+      "energyMonitorIp": "ip-or-hostname",
+      "energyMonitorType": "shelly-em",
+      "teslaVehicleId": "12345678901234567",
+      "teslaAccessToken": "12345678901234567",
+      "teslaRefreshToken": "12345678901234567"
    }
+
+   **Notes:**
+      - Choose values wisely
+
    
    ```
    Make sure to obtain the required tokens by following the instructions [here](https://github.com/adriankumpf/tesla_auth).
@@ -55,7 +65,7 @@ Dynamic charging control for your Tesla using the default charger.
 
    To test your configuration you can call (GET) `<tesla-smart-charger>/config`
 
-   The default behavior, with no extra configuration, is that the charging amps will be reduced by the `downStep` configuration. For example, if `downStep` is set to 0.5, the charging amps will be configured to half of the current amps. If it's set to 0.25, it will be configured to 25% of the current amps.
+   The default behavior, with no extra configuration, is that the charging amps will be reduced by the `downStepPercentage` configuration. For example, if `downStepPercentage` is set to 0.5, the charging amps will be configured to half of the current amps. If it's set to 0.25, it will be configured to 25% of the current amps.
 
    Importantly, Tesla Smart Charger will never send wake-up commands to the car. It will only be triggered when the car is online and charging. It's not expected to cause any battery drains.
 

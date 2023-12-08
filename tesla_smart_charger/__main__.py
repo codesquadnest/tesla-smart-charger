@@ -24,14 +24,17 @@ from tesla_smart_charger import utils
 class Config(BaseModel):
     """Config class for Tesla Smart Charger."""
 
-    maxPower: float
-    minPower: float
-    downStep: float
-    upStep: float
-    sleepTime: int
-    vehicleId: str
-    accessToken: str
-    refreshToken: str
+    homeMaxAmps: float
+    chargerMaxAmps: float
+    chargerMinAmps: float
+    downStepPercentage: float
+    upStepPercentage: float
+    sleepTimeSecs: int
+    energyMonitorIp: str
+    energyMonitorType: str
+    teslaVehicleId: str
+    teslaAccessToken: str
+    teslaRefreshToken: str
 
 
 # Create the FastAPI app
@@ -72,9 +75,8 @@ async def shutdown_event():
 
 
 def exit_handler():
-    print("Exiting application")
     # Perform cleanup or final tasks here
-
+    pass
 
 # Register the exit_handler to run when the application exits
 atexit.register(exit_handler)
@@ -109,7 +111,7 @@ def overload():
 
         # Calculate the new charge limit
         new_charge_limit = int(charger_actual_current) * float(
-            tesla_config.config["downStep"]
+            tesla_config.config["downStepPercentage"]
         )
 
         # Set the new charge limit
@@ -137,6 +139,7 @@ def underload():
 # Get the current configuration
 @app.get("/config")
 def get_config():
+    tesla_config.load_config()
     response = tesla_config.get_config()
 
     if "error" in response:
@@ -163,8 +166,19 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
+        "-p",
+        "--port",
+        default=8000,
+        type=int,
+        help="The port to run the FastAPI server on",
+    )
+    # Vehicles argument to get the list of vehicles from the Tesla API
+    # not required to run the FastAPI server
+    parser.add_argument(
         "vehicles",
         help="Get the list of vehicles from the Tesla API",
+        nargs="?",
+        default=None,
     )
 
     # Parse the arguments
@@ -177,9 +191,8 @@ def main():
         # Exit the application
         exit(0)
 
-
     # Start the FastAPI server
-    uvicorn.run(app=app, host="0.0.0.0", port=8000)
+    uvicorn.run(app=app, host="0.0.0.0", port=args.port)
 
 
 if __name__ == "__main__":

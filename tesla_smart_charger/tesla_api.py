@@ -41,7 +41,7 @@ class TeslaAPI:
         vehicle_request = requests.get(
             constants.TESLA_API_VEHICLES_URL,
             headers={
-                "Authorization": f"Bearer {self.charger_config.get_config().get('accessToken', None)}"
+                "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken', None)}"
             },
         )
         vehicle_response = json.loads(vehicle_request.text)
@@ -61,10 +61,10 @@ class TeslaAPI:
         # Get the vehicle data from the Tesla API
         vehicle_request = requests.get(
             constants.TESLA_API_VEHICLE_DATA_URL.format(
-                id=self.charger_config.get_config().get("vehicleId", None)
+                id=self.charger_config.get_config().get("teslaVehicleId", None)
             ),
             headers={
-                "Authorization": f"Bearer {self.charger_config.get_config().get('accessToken', None)}"
+                "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken', None)}"
             },
         )
         vehicle_response = json.loads(vehicle_request.text)
@@ -88,10 +88,10 @@ class TeslaAPI:
         # Set the charge Amperage limit
         charge_limit_request = requests.post(
             constants.TESLA_API_CHARGE_AMP_LIMIT_URL.format(
-                id=self.charger_config.get_config().get("vehicleId", None)
+                id=self.charger_config.get_config().get("teslaVehicleId", None)
             ),
             headers={
-                "Authorization": f"Bearer {self.charger_config.get_config().get('accessToken', None)}"
+                "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken', None)}"
             },
             json={"charging_amps": amp_limit},
         )
