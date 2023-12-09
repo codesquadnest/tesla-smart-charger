@@ -17,14 +17,17 @@ def config_file(tmp_path: str) -> str:
     Create a temporary config file.
     """
     config = {
-        "maxPower": "11.0",
-        "minPower": "6.0",
-        "downStep": "0.5",
-        "upStep": "0.5",
-        "sleepTime": "300",
-        "vehicleId": "1234567890",
-        "accessToken": "1234567890",
-        "refreshToken": "0987654321",
+        "homeMaxAmps": "11.0",
+        "chargerMaxAmps": "11.0",
+        "chargerMinAmps": "6.0",
+        "downStepPercentage": "0.5",
+        "upStepPercentage": "0.5",
+        "sleepTimeSecs": "300",
+        "energyMonitorIp": "localhost",
+        "energyMonitorType": "shell_em",
+        "teslaVehicleId": "1234567890",
+        "teslaAccessToken": "1234567890",
+        "teslaRefreshToken": "0987654321",
     }
     config_file = tmp_path / "config.json"
     with open(config_file, "w") as file:
@@ -39,14 +42,17 @@ def test_load_config(config_file: str) -> None:
     tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     assert tesla_config.get_config() == {
-        "maxPower": "11.0",
-        "minPower": "6.0",
-        "downStep": "0.5",
-        "upStep": "0.5",
-        "sleepTime": "300",
-        "vehicleId": "1234567890",
-        "accessToken": "1234567890",
-        "refreshToken": "0987654321",
+        "homeMaxAmps": "11.0",
+        "chargerMaxAmps": "11.0",
+        "chargerMinAmps": "6.0",
+        "downStepPercentage": "0.5",
+        "upStepPercentage": "0.5",
+        "sleepTimeSecs": "300",
+        "energyMonitorIp": "localhost",
+        "energyMonitorType": "shell_em",
+        "teslaVehicleId": "1234567890",
+        "teslaAccessToken": "1234567890",
+        "teslaRefreshToken": "0987654321",
     }
 
 
@@ -77,10 +83,10 @@ def test_load_config_file_missing_required_key(tmp_path: str) -> None:
     """
     config_file = tmp_path / "config.json"
     with open(config_file, "w") as file:
-        json.dump({"maxPower": 11.0}, file, indent=4)
+        json.dump({"chargerMaxAmps": 11.0}, file, indent=4)
     tesla_config = ChargerConfig(config_file)
     assert tesla_config.load_config()["error"].startswith(
-        "Config file is not valid: Config file is missing required key: minPower"
+        "Config file is not valid: Config file is missing required key: homeMaxAmps"
     )
 
 
@@ -91,14 +97,17 @@ def test_get_config(config_file: str) -> None:
     tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
     assert tesla_config.get_config() == {
-        "maxPower": "11.0",
-        "minPower": "6.0",
-        "downStep": "0.5",
-        "upStep": "0.5",
-        "sleepTime": "300",
-        "vehicleId": "1234567890",
-        "accessToken": "1234567890",
-        "refreshToken": "0987654321",
+        "homeMaxAmps": "11.0",
+        "chargerMaxAmps": "11.0",
+        "chargerMinAmps": "6.0",
+        "downStepPercentage": "0.5",
+        "upStepPercentage": "0.5",
+        "sleepTimeSecs": "300",
+        "energyMonitorIp": "localhost",
+        "energyMonitorType": "shell_em",
+        "teslaVehicleId": "1234567890",
+        "teslaAccessToken": "1234567890",
+        "teslaRefreshToken": "0987654321",
     }
 
 
@@ -112,36 +121,45 @@ def test_set_config(config_file: str) -> None:
     class Config(BaseModel):
         """Config class for Tesla Smart Charger."""
 
-        maxPower: float
-        minPower: float
-        downStep: float
-        upStep: float
-        sleepTime: int
-        vehicleId: str
-        accessToken: str
-        refreshToken: str
+        homeMaxAmps: float
+        chargerMaxAmps: float
+        chargerMinAmps: float
+        downStepPercentage: float
+        upStepPercentage: float
+        sleepTimeSecs: int
+        energyMonitorIp: str
+        energyMonitorType: str
+        teslaVehicleId: str
+        teslaAccessToken: str
+        teslaRefreshToken: str
 
     test_config = Config(
-        maxPower=10.0,
-        minPower=5.0,
-        downStep=0.5,
-        upStep=0.5,
-        sleepTime=300,
-        vehicleId="1234567890",
-        accessToken="1234567890",
-        refreshToken="0987654321",
+        homeMaxAmps=11.0,
+        chargerMaxAmps=10.0,
+        chargerMinAmps=5.0,
+        downStepPercentage=0.5,
+        upStepPercentage=0.5,
+        sleepTimeSecs=300,
+        energyMonitorIp="localhost",
+        energyMonitorType="shell_em",
+        teslaVehicleId="1234567890",
+        teslaAccessToken="1234567890",
+        teslaRefreshToken="0987654321",
     )
 
     tesla_config.set_config(test_config.model_dump_json())
     assert tesla_config.get_config() == {
-        "maxPower": 10.0,
-        "minPower": 5.0,
-        "downStep": 0.5,
-        "upStep": 0.5,
-        "sleepTime": 300,
-        "vehicleId": "1234567890",
-        "accessToken": "1234567890",
-        "refreshToken": "0987654321",
+        "homeMaxAmps": 11.0,
+        "chargerMaxAmps": 10.0,
+        "chargerMinAmps": 5.0,
+        "downStepPercentage": 0.5,
+        "upStepPercentage": 0.5,
+        "sleepTimeSecs": 300,
+        "energyMonitorIp": "localhost",
+        "energyMonitorType": "shell_em",
+        "teslaVehicleId": "1234567890",
+        "teslaAccessToken": "1234567890",
+        "teslaRefreshToken": "0987654321",
     }
 
 
@@ -151,8 +169,8 @@ def test_set_config_missing_required_key(config_file: str) -> None:
     """
     tesla_config = ChargerConfig(config_file)
     tesla_config.load_config()
-    assert tesla_config.set_config({"maxPower": 11.0})["error"].startswith(
-        "Config is not valid: Config file is missing required key: minPower"
+    assert tesla_config.set_config({"chargerMaxAmps": 11.0})["error"].startswith(
+        "Config is not valid: Config file is missing required key: homeMaxAmps"
     )
 
 
@@ -164,23 +182,26 @@ def test_validate_config() -> None:
     tesla_config.load_config()
     tesla_config.validate_config(
         {
-            "maxPower": 11.0,
-            "minPower": 6.0,
-            "downStep": 0.5,
-            "upStep": 0.5,
-            "sleepTime": 300,
-            "vehicleId": "1234567890",
-            "accessToken": "1234567890",
-            "refreshToken": "0987654321",
+            "homeMaxAmps": 11.0,
+            "chargerMaxAmps": 11.0,
+            "chargerMinAmps": 6.0,
+            "downStepPercentage": 0.5,
+            "upStepPercentage": 0.5,
+            "sleepTimeSecs": 300,
+            "energyMonitorIp": "localhost",
+            "energyMonitorType": "shell_em",
+            "teslaVehicleId": "1234567890",
+            "teslaAccessToken": "1234567890",
+            "teslaRefreshToken": "0987654321",
         }
     )
     with pytest.raises(ValueError):
-        tesla_config.validate_config({"maxPower": 11.0, "minPower": 6.0})
+        tesla_config.validate_config({"chargerMaxAmps": 11.0, "chargerMinAmps": 6.0})
     with pytest.raises(ValueError):
         tesla_config.validate_config(
-            {"maxPower": 11.0, "minPower": 6.0, "downStep": 0.5}
+            {"chargerMaxAmps": 11.0, "chargerMinAmps": 6.0, "downStepPercentage": 0.5}
         )
     with pytest.raises(ValueError):
         tesla_config.validate_config(
-            {"maxPower": 11.0, "minPower": 6.0, "downStep": 0.5, "upStep": 0.5}
+            {"chargerMaxAmps": 11.0, "chargerMinAmps": 6.0, "downStepPercentage": 0.5, "upStepPercentage": 0.5}
         )
