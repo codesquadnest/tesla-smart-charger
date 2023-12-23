@@ -143,7 +143,7 @@ def overload():
 
     else:
         response = {"msg": "overload handling not required"}
-        return JSONResponse(content=response, status_code=204)
+        return JSONResponse(content=response, status_code=202)
 
 
 # Total consumption of the house is below the power limit
