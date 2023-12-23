@@ -52,6 +52,13 @@ tesla_api = TeslaAPI(tesla_config)
 stop_event = threading.Event()
 
 
+def _get_thread_by_name(thread_name: str) -> str:
+    for thread in threading.enumerate():
+        if thread.name == thread_name:
+            return thread
+    return None
+
+
 # Register the startup and shutdown events
 async def startup_event():
     print("FastAPI application starting up")
@@ -67,17 +74,14 @@ async def shutdown_event():
     print("FastAPI application shutting down")
 
     # Stop the token refresh cron job
-    for thread in threading.enumerate():
-        if thread.name == "tsc_token_cron_thread":
-            # Set the event to signal the thread to stop
-            stop_event.set()
-            # Wait for the thread to finish
-            thread.join()
+    stop_event.set()
+    _get_thread_by_name("tsc_token_cron_thread").join()
 
 
 def exit_handler():
     # Perform cleanup or final tasks here
     pass
+
 
 # Register the exit_handler to run when the application exits
 atexit.register(exit_handler)
@@ -118,10 +122,15 @@ def overload():
             # Set the new charge limit
             response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
             if constants.VERBOSE:
-                print("Request successful:", response.text)
+                print("Request successful:", response)
         except Exception as e:
             return {"error": f"Set charge limit failed: {str(e)}"}
-        
+
+        # If a thread handler already exists no other will be started
+        if _get_thread_by_name("tsc_handle_overload_thread"):
+            response = {"msg": "overload handling session already started"}
+            return JSONResponse(content=response, status_code=202)
+
         # Start the overload handler in a separate thread
         overload_thread = threading.Thread(
             target=handle_overload,
@@ -131,7 +140,7 @@ def overload():
 
         response = {"msg": "overload handler session started"}
         return JSONResponse(content=response, status_code=200)
-    
+
     else:
         response = {"msg": "overload handling not required"}
         return JSONResponse(content=response, status_code=204)
@@ -167,11 +176,10 @@ def set_config(config: Config):
 
 
 def main():
-
     # Parse the command line arguments
     parser = argparse.ArgumentParser(
         description="Tesla smart car charger",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "-p",
@@ -193,7 +201,7 @@ def main():
         "--verbose",
         action="store_true",
         default=constants.VERBOSE,
-        help="Enable verbose mode"
+        help="Enable verbose mode",
     )
 
     # Parse the arguments
