@@ -11,6 +11,7 @@ import uvicorn
 
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import tesla_smart_charger.constants as constants
@@ -87,20 +88,19 @@ app.add_event_handler("shutdown", shutdown_event)
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    response = {"msg": "Tesla Smart Charger API"}
+    return JSONResponse(content=response, status_code=200)
 
 
 # Total consumption of the house exceeds the power limit
 @app.get("/overload")
 def overload():
-    vehicle_data = tesla_api.get_vehicle_data()
-    # print(vehicle_data)
-
-    if vehicle_data is None:
-        raise HTTPException(status_code=500, detail="No vehicle data found")
-
-    if "error" in vehicle_data:
-        raise HTTPException(status_code=500, detail=vehicle_data["error"])
+    try:
+        vehicle_data = tesla_api.get_vehicle_data()
+        if constants.VERBOSE:
+            print(vehicle_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
     if (
         vehicle_data["state"] == "online"
@@ -114,26 +114,34 @@ def overload():
             tesla_config.config["downStepPercentage"]
         )
 
-        # Set the new charge limit
-        response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
+        try:
+            # Set the new charge limit
+            response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
+            if constants.VERBOSE:
+                print("Request successful:", response.text)
+        except Exception as e:
+            return {"error": f"Set charge limit failed: {str(e)}"}
+        
+        # Start the overload handler in a separate thread
+        overload_thread = threading.Thread(
+            target=handle_overload,
+            name="tsc_handle_overload_thread",
+        )
+        overload_thread.start()
 
-        if "error" in response:
-            raise HTTPException(status_code=500, detail=response["error"])
-        else:
-            # Start the overload handler in a separate thread
-            overload_thread = threading.Thread(
-                target=handle_overload,
-                name="tsc_handle_overload_thread",
-            )
-            overload_thread.start()
-
-        return response
+        response = {"msg": "overload handler session started"}
+        return JSONResponse(content=response, status_code=200)
+    
+    else:
+        response = {"msg": "overload handling not required"}
+        return JSONResponse(content=response, status_code=204)
 
 
 # Total consumption of the house is below the power limit
 @app.post("/underload")
 def underload():
-    return {"status": "ok"}
+    response = {"msg": "underload session not implemented"}
+    return JSONResponse(content=response, status_code=404)
 
 
 # Get the current configuration
@@ -145,7 +153,7 @@ def get_config():
     if "error" in response:
         raise HTTPException(status_code=500, detail=response["error"])
 
-    return response
+    return JSONResponse(content=response, status_code=200)
 
 
 @app.post("/config")
@@ -180,13 +188,28 @@ def main():
         nargs="?",
         default=None,
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        default=constants.VERBOSE,
+        help="Enable verbose mode"
+    )
 
     # Parse the arguments
     args = parser.parse_args()
 
+    # Configure verbose mode
+    if args.verbose:
+        constants.VERBOSE = True
+
     if args.vehicles:
         # Get the vehicles from the Tesla API
-        vehicles = tesla_api.get_vehicles()
+        try:
+            vehicles = tesla_api.get_vehicles()
+        except Exception as e:
+            print("Request failed:", str(e))
+            exit(1)
         utils.show_vehicles(vehicles)
         # Exit the application
         exit(0)

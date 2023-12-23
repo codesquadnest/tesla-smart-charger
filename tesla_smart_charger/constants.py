@@ -2,6 +2,9 @@
 Constants for the Tesla Smart Charger integration.
 """
 
+# Verbose mode
+VERBOSE = False
+
 # Path to the configuration file
 CONFIG_FILE = "config.json"
 
