@@ -59,14 +59,14 @@ def handle_overload():
         print("Supervised session ended!")
         raise HTTPException(status_code=500, detail="Invalid energy monitor type")
 
+    # Sleep for the configured time
+    time.sleep(int(tesla_config.config["sleepTimeSecs"]))
     # Get the current vehicle data
-    vehicle_data = tesla_api.get_vehicle_data()
-
-    if vehicle_data is None:
-        raise HTTPException(status_code=500, detail="No vehicle data found")
-
-    if "error" in vehicle_data:
-        raise HTTPException(status_code=500, detail=vehicle_data["error"])
+    try:
+        vehicle_data = tesla_api.get_vehicle_data()
+    except Exception as e:
+        print("Supervised session interrupted!")
+        raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
     while (
         vehicle_data["state"] == "online"
@@ -98,10 +98,11 @@ def handle_overload():
         print(f"New charge limit: {new_charge_limit}A")
         if new_charge_limit != charger_actual_current:
             # Set the new charge limit
-            response = tesla_api.set_charge_amp_limit(new_charge_limit)
-
-            if "error" in response:
-                raise HTTPException(status_code=500, detail=response["error"])
+            try:
+                tesla_api.set_charge_amp_limit(new_charge_limit)
+            except Exception as e:
+                print("Supervised session interrupted!")
+                raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
         else:
             print("No change in charge limit")
 
@@ -109,12 +110,10 @@ def handle_overload():
         time.sleep(int(tesla_config.config["sleepTimeSecs"]))
 
         # Get the current vehicle data
-        vehicle_data = tesla_api.get_vehicle_data()
-
-        if vehicle_data is None:
-            raise HTTPException(status_code=500, detail="No vehicle data found")
-
-        if "error" in vehicle_data:
-            raise HTTPException(status_code=500, detail=vehicle_data["error"])
+        try:
+            vehicle_data = tesla_api.get_vehicle_data()
+        except Exception as e:
+            print("Supervised session interrupted!")
+            raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
     print("Overload handled!")

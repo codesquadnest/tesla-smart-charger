@@ -5,6 +5,7 @@ Tesla API class for Tesla Smart Charger.
 import json
 
 import requests
+from retrying import retry
 
 import tesla_smart_charger.constants as constants
 from tesla_smart_charger.charger_config import ChargerConfig
@@ -29,6 +30,7 @@ class TeslaAPI:
         """
         self.charger_config = charger_config
 
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=5)
     def get_vehicles(self: object) -> dict:
         """Get the vehicles from the Tesla API.
 
@@ -44,12 +46,19 @@ class TeslaAPI:
                 "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken', None)}"
             },
         )
-        vehicle_response = json.loads(vehicle_request.text)
-        # print(vehicle_response)
 
-        # Return the vehicles
-        return vehicle_response["response"]
+        if vehicle_request.status_code != 200:
+            raise Exception("Request 'get_vehicles' failed with status code {}".format(vehicle_request.status_code))
 
+        response = json.loads(vehicle_request.text)
+        
+        if constants.VERBOSE:
+            print(response)
+
+        return response["response"]
+
+
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=5)
     def get_vehicle_data(self: object) -> dict:
         """Get the vehicle data from the Tesla API.
 
@@ -67,12 +76,17 @@ class TeslaAPI:
                 "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken', None)}"
             },
         )
-        vehicle_response = json.loads(vehicle_request.text)
-        # print(vehicle_response)
+        if vehicle_request.status_code != 200:
+            raise Exception("Request 'get_vehicle_data' failed with status code {}".format(vehicle_request.status_code))
 
-        # Return the vehicle data
-        return vehicle_response["response"]
+        response = json.loads(vehicle_request.text)
 
+        if constants.VERBOSE:
+            print(response)
+
+        return response["response"]
+
+    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=5)
     def set_charge_amp_limit(self: object, amp_limit: int) -> dict:
         """Set the charge Amperage limit.
 
@@ -95,8 +109,12 @@ class TeslaAPI:
             },
             json={"charging_amps": amp_limit},
         )
-        charge_limit_response = json.loads(charge_limit_request.text)
-        print(charge_limit_response)
+        if charge_limit_request.status_code != 200:
+            raise Exception("Request 'set_charge_amp_limit' failed with status code {}".format(charge_limit_request.status_code))
 
-        # Return the response
-        return charge_limit_response
+        response = json.loads(charge_limit_request.text)
+
+        if constants.VERBOSE:
+            print(response)
+        
+        return response
