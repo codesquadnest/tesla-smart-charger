@@ -5,6 +5,9 @@ Constants for the Tesla Smart Charger integration.
 # Verbose mode
 VERBOSE = False
 
+# Request delay in milliseconds
+REQUEST_DELAY_MS = 3000
+
 # Path to the configuration file
 CONFIG_FILE = "config.json"
 

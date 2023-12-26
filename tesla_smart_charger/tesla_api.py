@@ -30,7 +30,7 @@ class TeslaAPI:
         """
         self.charger_config = charger_config
 
-    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=5)
+    @retry(wait_exponential_multiplier=constants.REQUEST_DELAY_MS, wait_exponential_max=10000, stop_max_attempt_number=5)
     def get_vehicles(self: object) -> dict:
         """Get the vehicles from the Tesla API.
 
@@ -58,7 +58,7 @@ class TeslaAPI:
         return response["response"]
 
 
-    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=5)
+    @retry(wait_exponential_multiplier=constants.REQUEST_DELAY_MS, wait_exponential_max=10000, stop_max_attempt_number=5)
     def get_vehicle_data(self: object) -> dict:
         """Get the vehicle data from the Tesla API.
 
@@ -86,7 +86,7 @@ class TeslaAPI:
 
         return response["response"]
 
-    @retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, stop_max_attempt_number=5)
+    @retry(wait_exponential_multiplier=constants.REQUEST_DELAY_MS, wait_exponential_max=10000, stop_max_attempt_number=5)
     def set_charge_amp_limit(self: object, amp_limit: int) -> dict:
         """Set the charge Amperage limit.
 

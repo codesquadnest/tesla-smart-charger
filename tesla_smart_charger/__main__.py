@@ -101,8 +101,6 @@ def read_root():
 def overload():
     try:
         vehicle_data = tesla_api.get_vehicle_data()
-        if constants.VERBOSE:
-            print(vehicle_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
@@ -121,8 +119,6 @@ def overload():
         try:
             # Set the new charge limit
             response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
-            if constants.VERBOSE:
-                print("Request successful:", response)
         except Exception as e:
             return {"error": f"Set charge limit failed: {str(e)}"}
 

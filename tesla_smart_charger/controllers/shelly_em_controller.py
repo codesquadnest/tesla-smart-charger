@@ -6,6 +6,8 @@ This controller monitors the power consumption of the Shelly EM device
 
 import requests
 
+from retrying import retry
+
 import tesla_smart_charger.constants as constants
 
 from tesla_smart_charger.controllers.em_controller import EnergyMonitorController
@@ -36,6 +38,11 @@ class ShellyEMController(EnergyMonitorController):
         """
         self.state = state
 
+    @retry(
+        wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
+        wait_exponential_max=10000,
+        stop_max_attempt_number=10,
+    )
     def get_consumption(self: object) -> float:
         """
         Returns the current consumption of the house

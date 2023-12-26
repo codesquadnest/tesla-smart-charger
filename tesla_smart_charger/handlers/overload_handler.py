@@ -12,9 +12,18 @@ from tesla_smart_charger.controllers import em_controller as _em_controller
 from tesla_smart_charger.charger_config import ChargerConfig
 from tesla_smart_charger.tesla_api import TeslaAPI
 
+
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
 tesla_api = TeslaAPI(tesla_config)
+
+
+def _reload_config():
+    """
+    Reloads the config
+    """
+    tesla_config.load_config()
+    tesla_api.charger_config = tesla_config
 
 
 def _calculate_new_charge_limit(
@@ -63,6 +72,7 @@ def handle_overload():
     time.sleep(int(tesla_config.config["sleepTimeSecs"]))
     # Get the current vehicle data
     try:
+        _reload_config()
         vehicle_data = tesla_api.get_vehicle_data()
     except Exception as e:
         print("Supervised session interrupted!")
@@ -72,7 +82,7 @@ def handle_overload():
         vehicle_data["state"] == "online"
         and vehicle_data["charge_state"]["charging_state"] == "Charging"
     ):
-        tesla_config.load_config()
+        _reload_config()
         # Get the current charge limit in amps
         charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
 
