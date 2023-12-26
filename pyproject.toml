@@ -25,7 +25,7 @@ tesla-smart-charger = "tesla_smart_charger.__main__:main"
 python = "^3.8, <4.0"
 requests = "^2.31.0"
 fastapi = "^0.104.1"
-uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
+uvicorn = {extras = ["standard"], version = "^0.25.0"}
 schedule = "^1.2.1"
 retrying = "^1.3.4"
 
