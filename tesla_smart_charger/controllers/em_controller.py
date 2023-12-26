@@ -1,5 +1,4 @@
-"""
-Energy Monitor Controller
+"""Energy Monitor Controller.
 
 This controller is responsible for monitoring the energy usage of the house
 to determine if the power limit can be increased or decreased.
@@ -13,45 +12,33 @@ from abc import ABC, abstractmethod
 
 
 class EnergyMonitorController(ABC):
-    """
-    Abstract class that defines the interface for the controller
-    """
+    """Abstract class that defines the interface for the controller."""
 
     @abstractmethod
     def get_state(self: object) -> str:
-        """
-        Returns the current state of the controller
-        """
-        pass
+        """Return the current state of the controller."""
 
     @abstractmethod
     def set_state(self: object, state: str) -> None:
-        """
-        Sets the current state of the controller
-        """
-        pass
+        """Set the current state of the controller."""
 
     @abstractmethod
     def get_consumption(self: object) -> float:
-        """
-        Returns the current consumption of the house
-        """
-        pass
+        """Return the current consumption of the house."""
 
 
-"""
-Energy Monitor Controller Factory
-"""
+"""Energy Monitor Controller Factory."""
+
+
 def create_energy_monitor_controller(
-    implementation_type: str, host: str
+    implementation_type: str,
+    host: str,
 ) -> EnergyMonitorController:
-    """
-    Factory function to create instances of EnergyMonitorController based on the
-    implementation_type
-    """
-    import tesla_smart_charger.controllers.shelly_em_controller as shelly_em_controller
+    """Create instances of EnergyMonitorController based on the implementation_type."""
+    from tesla_smart_charger.controllers import shelly_em_controller
 
     if implementation_type == "shelly_em":
         return shelly_em_controller.ShellyEMController(host)
-    else:
-        raise ValueError("Invalid implementation type")
+
+    msg = f"Invalid implementation type: {implementation_type}"
+    raise ValueError(msg)

@@ -1,25 +1,23 @@
-"""
-Tesla smart car charger
+"""Tesla smart car charger.
 
 This script is the main entry point for the Tesla smart car charger.
 """
 
 import argparse
 import atexit
+import sys
 import threading
+
 import uvicorn
-
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-import tesla_smart_charger.constants as constants
+from tesla_smart_charger import constants, utils
 from tesla_smart_charger.charger_config import ChargerConfig
 from tesla_smart_charger.handlers.overload_handler import handle_overload
 from tesla_smart_charger.tesla_api import TeslaAPI
 from tesla_smart_charger.token_cron import start_cron_job
-from tesla_smart_charger import utils
 
 
 class Config(BaseModel):
@@ -60,17 +58,21 @@ def _get_thread_by_name(thread_name: str) -> str:
 
 
 # Register the startup and shutdown events
-async def startup_event():
+async def startup_event() -> None:
+    """Startup event handler."""
     print("FastAPI application starting up")
 
     # Start the token refresh cron job in a separate thread
     cron_thread = threading.Thread(
-        target=start_cron_job, args=(stop_event,), name="tsc_token_cron_thread"
+        target=start_cron_job,
+        args=(stop_event,),
+        name="tsc_token_cron_thread",
     )
     cron_thread.start()
 
 
-async def shutdown_event():
+async def shutdown_event() -> None:
+    """Shutdown event handler."""
     print("FastAPI application shutting down")
 
     # Stop the token refresh cron job
@@ -78,9 +80,9 @@ async def shutdown_event():
     _get_thread_by_name("tsc_token_cron_thread").join()
 
 
-def exit_handler():
+def exit_handler() -> None:
+    """Exit handler."""
     # Perform cleanup or final tasks here
-    pass
 
 
 # Register the exit_handler to run when the application exits
@@ -91,18 +93,23 @@ app.add_event_handler("shutdown", shutdown_event)
 
 
 @app.get("/")
-def read_root():
+def read_root() -> JSONResponse:
+    """Root endpoint."""
     response = {"msg": "Tesla Smart Charger API"}
     return JSONResponse(content=response, status_code=200)
 
 
-# Total consumption of the house exceeds the power limit
 @app.get("/overload")
-def overload():
+def overload() -> JSONResponse:
+    """Overload endpoint.
+
+    This endpoint is called when the total consumption of the house exceeds the power
+    limit.
+    """
     try:
         vehicle_data = tesla_api.get_vehicle_data()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
+    except HTTPException as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e!s}") from e
 
     if (
         vehicle_data["state"] == "online"
@@ -113,14 +120,14 @@ def overload():
 
         # Calculate the new charge limit
         new_charge_limit = int(charger_actual_current) * float(
-            tesla_config.config["downStepPercentage"]
+            tesla_config.config["downStepPercentage"],
         )
 
         try:
             # Set the new charge limit
             response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
-        except Exception as e:
-            return {"error": f"Set charge limit failed: {str(e)}"}
+        except HTTPException as e:
+            return {"error": f"Set charge limit failed: {e!s}"}
 
         # If a thread handler already exists no other will be started
         if _get_thread_by_name("tsc_handle_overload_thread"):
@@ -137,21 +144,22 @@ def overload():
         response = {"msg": "overload handler session started"}
         return JSONResponse(content=response, status_code=200)
 
-    else:
-        response = {"msg": "overload handling not required"}
-        return JSONResponse(content=response, status_code=202)
+    response = {"msg": "overload handling not required"}
+    return JSONResponse(content=response, status_code=202)
 
 
 # Total consumption of the house is below the power limit
 @app.post("/underload")
-def underload():
+def underload() -> JSONResponse:
+    """Underload endpoint."""
     response = {"msg": "underload session not implemented"}
     return JSONResponse(content=response, status_code=404)
 
 
 # Get the current configuration
 @app.get("/config")
-def get_config():
+def get_config() -> JSONResponse:
+    """Config endpoint."""
     tesla_config.load_config()
     response = tesla_config.get_config()
 
@@ -162,7 +170,8 @@ def get_config():
 
 
 @app.post("/config")
-def set_config(config: Config):
+def set_config(config: Config) -> JSONResponse:
+    """Config endpoint."""
     response = tesla_config.set_config(config.model_dump_json())
 
     if "error" in response:
@@ -171,7 +180,8 @@ def set_config(config: Config):
     return response
 
 
-def main():
+def main() -> None:
+    """Entry point for the Tesla smart car charger."""
     # Parse the command line arguments
     parser = argparse.ArgumentParser(
         description="Tesla smart car charger",
@@ -211,12 +221,12 @@ def main():
         # Get the vehicles from the Tesla API
         try:
             vehicles = tesla_api.get_vehicles()
-        except Exception as e:
+        except HTTPException as e:
             print("Request failed:", str(e))
-            exit(1)
+            sys.exit(1)
         utils.show_vehicles(vehicles)
         # Exit the application
-        exit(0)
+        sys.exit(0)
 
     # Start the FastAPI server
     uvicorn.run(app=app, host="0.0.0.0", port=args.port)

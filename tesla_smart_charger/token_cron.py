@@ -1,23 +1,20 @@
-"""
-Python script to run the token refresh cron job.
-"""
+"""Python script to run the token refresh cron job."""
 
 import json
-import requests
-import schedule
 import threading
 import time
 
-import tesla_smart_charger.constants as constants
+import requests
+import schedule
+
+from tesla_smart_charger import constants
 from tesla_smart_charger.charger_config import ChargerConfig
 
 charger_config = ChargerConfig(constants.CONFIG_FILE)
 
 
-def refresh_tesla_token():
-    """
-    Refresh the Tesla token
-    """
+def refresh_tesla_token() -> None:
+    """Refresh the Tesla token."""
     print("Refreshing token!")
     charger_config.load_config()
 
@@ -30,8 +27,10 @@ def refresh_tesla_token():
     print(refresh_json)
 
     # Request new token from Tesla API
-    token_request = requests.post(constants.TESLA_API_TOKEN_URL, json=refresh_json)
-    print("New Token : " + token_request.text)
+    token_request = requests.post(
+        constants.TESLA_API_TOKEN_URL, json=refresh_json, timeout=20,
+    )
+    print(f"New Token : {token_request.text}")
 
     # Parse the response
     token_response = json.loads(token_request.text)
@@ -43,10 +42,8 @@ def refresh_tesla_token():
     charger_config.set_config(json.dumps(charger_config.config))
 
 
-def start_cron_job(stop_event: threading.Event):
-    """
-    Starts the cron job to refresh the Tesla token
-    """
+def start_cron_job(stop_event: threading.Event) -> None:
+    """Start the cron job to refresh the Tesla token."""
     schedule.every(6).hours.do(refresh_tesla_token)
 
     while not stop_event.is_set():

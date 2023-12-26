@@ -1,23 +1,20 @@
-"""
-Shelly EM controller implementation
+"""Shelly EM controller implementation.
 
 This controller monitors the power consumption of the Shelly EM device
 """
 
 import requests
-
 from retrying import retry
 
-import tesla_smart_charger.constants as constants
-
+from tesla_smart_charger import constants
 from tesla_smart_charger.controllers.em_controller import EnergyMonitorController
 
 
 class ShellyEMController(EnergyMonitorController):
+    """Shelly EM controller implementation."""
+
     def __init__(self: object, host: str) -> None:
-        """
-        Initializes the Shelly EM controller
-        """
+        """Initialize the Shelly EM controller."""
         self.type = "shelly_em"
         self.state = constants.EM_CONTROLLER_STATE_IDLE
         self.consumption = 0
@@ -27,15 +24,11 @@ class ShellyEMController(EnergyMonitorController):
         self.url = f"http://{host}/status/"
 
     def get_state(self: object) -> str:
-        """
-        Returns the current state of the controller
-        """
+        """Return the current state of the controller."""
         return self.state
 
     def set_state(self: object, state: str) -> None:
-        """
-        Sets the current state of the controller
-        """
+        """Set the current state of the controller."""
         self.state = state
 
     @retry(
@@ -44,10 +37,8 @@ class ShellyEMController(EnergyMonitorController):
         stop_max_attempt_number=10,
     )
     def get_consumption(self: object) -> float:
-        """
-        Returns the current consumption of the house
-        """
-        response = requests.get(self.url)
+        """Return the current consumption of the house."""
+        response = requests.get(self.url, timeout=10)
         response_json = response.json()
         self.last_consumption = self.consumption
 

@@ -1,6 +1,4 @@
-"""
-Constants for the Tesla Smart Charger integration.
-"""
+"""Constants for the Tesla Smart Charger integration."""
 
 # Verbose mode
 VERBOSE = False
@@ -57,7 +55,9 @@ TESLA_API_VEHICLES_URL = f"{TESLA_API_BASE_URL}/api/1/vehicles"
 TESLA_API_VEHICLE_DATA_URL = f"{TESLA_API_BASE_URL}/api/1/vehicles/{{id}}/vehicle_data"
 
 # URL for the Tesla API to set the charging Amperage limit
-TESLA_API_CHARGE_AMP_LIMIT_URL = f"{TESLA_API_BASE_URL}/api/1/vehicles/{{id}}/command/set_charging_amps"
+TESLA_API_CHARGE_AMP_LIMIT_URL = (
+    f"{TESLA_API_BASE_URL}/api/1/vehicles/{{id}}/command/set_charging_amps"
+)
 
 # Energy Monitor Controller states
 EM_CONTROLLER_STATE_IDLE = "IDLE"
