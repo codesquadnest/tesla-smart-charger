@@ -1,13 +1,11 @@
-"""
-Utility functions for tesla_smart_charger
-"""
+"""Utility functions for tesla_smart_charger."""
 
 
 def show_vehicles(vehicles: dict) -> None:
     """Show the vehicles.
 
     Args:
-
+    ----
         vehicles (dict): The vehicles.
 
     """
