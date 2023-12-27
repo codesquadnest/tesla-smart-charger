@@ -6,6 +6,9 @@ VERBOSE = False
 # Request delay in milliseconds
 REQUEST_DELAY_MS = 3000
 
+# Maximum number of queries to the Tesla API during overload handling session
+MAX_QUERIES = 20
+
 # Path to the configuration file
 CONFIG_FILE = "config.json"
 
