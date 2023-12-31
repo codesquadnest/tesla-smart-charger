@@ -49,6 +49,7 @@ def handle_overload() -> None:
     """Handle the overload of the charger."""
     print("Handling overload!")
     print("Supervised session started!")
+    tesla_api_calls = 0
     # Instantiate the Energy Monitor controller
     try:
         em_controller = _em_controller.create_energy_monitor_controller(
@@ -78,6 +79,7 @@ def handle_overload() -> None:
     while (
         vehicle_data["state"] == "online"
         and vehicle_data["charge_state"]["charging_state"] == "Charging"
+        and tesla_api_calls < constants.MAX_QUERIES
     ):
         _reload_config()
         # Get the current charge limit in amps
@@ -115,8 +117,10 @@ def handle_overload() -> None:
                     status_code=e.status_code,
                     detail=f"Request failed: {e!s}",
                 ) from e
+            tesla_api_calls = 0
         else:
             print("No change in charge limit")
+            tesla_api_calls += 1
 
         # Sleep for the configured time
         time.sleep(int(tesla_config.config["sleepTimeSecs"]))
