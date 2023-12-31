@@ -42,14 +42,10 @@ def refresh_tesla_token() -> None:
     charger_config.set_config(json.dumps(charger_config.config))
 
 
-def start_cron_job(stop_event: threading.Event) -> None:
+def start_cron_token(stop_event: threading.Event) -> None:
     """Start the cron job to refresh the Tesla token."""
     schedule.every(6).hours.do(refresh_tesla_token)
 
     while not stop_event.is_set():
         schedule.run_pending()
         time.sleep(1)
-
-
-if __name__ == "__main__":
-    start_cron_job()

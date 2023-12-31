@@ -11,7 +11,9 @@ from tesla_smart_charger.charger_config import ChargerConfig
 
 
 class TeslaAPI:
-    """Tesla API class for Tesla Smart Charger.
+
+    """
+    Tesla API class for Tesla Smart Charger.
 
     Attributes
     ----------
@@ -20,7 +22,8 @@ class TeslaAPI:
     """
 
     def __init__(self: object, charger_config: ChargerConfig) -> None:
-        """Initialize the Tesla API.
+        """
+        Initialize the Tesla API.
 
         Args:
         ----
@@ -35,7 +38,8 @@ class TeslaAPI:
         stop_max_attempt_number=5,
     )
     def get_vehicles(self: object) -> dict:
-        """Get the vehicles from the Tesla API.
+        """
+        Get the vehicles from the Tesla API.
 
         Returns
         -------
@@ -71,7 +75,8 @@ class TeslaAPI:
         stop_max_attempt_number=5,
     )
     def get_vehicle_data(self: object) -> dict:
-        """Get the vehicle data from the Tesla API.
+        """
+        Get the vehicle data from the Tesla API.
 
         Returns
         -------
@@ -108,7 +113,8 @@ class TeslaAPI:
         stop_max_attempt_number=5,
     )
     def set_charge_amp_limit(self: object, amp_limit: int) -> dict:
-        """Set the charge Amperage limit.
+        """
+        Set the charge Amperage limit.
 
         Args:
         ----

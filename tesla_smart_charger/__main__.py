@@ -1,4 +1,5 @@
-"""Tesla smart car charger.
+"""
+Tesla smart car charger.
 
 This script is the main entry point for the Tesla smart car charger.
 """
@@ -15,12 +16,14 @@ from pydantic import BaseModel
 
 from tesla_smart_charger import constants, utils
 from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.cron.em_cron import start_cron_monitor
+from tesla_smart_charger.cron.token_cron import start_cron_token
 from tesla_smart_charger.handlers.overload_handler import handle_overload
 from tesla_smart_charger.tesla_api import TeslaAPI
-from tesla_smart_charger.token_cron import start_cron_job
 
 
 class Config(BaseModel):
+
     """Config class for Tesla Smart Charger."""
 
     homeMaxAmps: float
@@ -50,11 +53,21 @@ tesla_api = TeslaAPI(tesla_config)
 stop_event = threading.Event()
 
 
-def _get_thread_by_name(thread_name: str) -> str:
+def _get_thread_by_name(thread_name: str) -> threading.Thread | None:
     for thread in threading.enumerate():
         if thread.name == thread_name:
             return thread
     return None
+
+
+def _start_cron_job(target_job: object, stop_event: threading.Event, name: str) -> None:
+    """Start a new cron thread with the provided name."""
+    cron_thread = threading.Thread(
+        target=target_job,
+        args=(stop_event,),
+        name=name,
+    )
+    cron_thread.start()
 
 
 # Register the startup and shutdown events
@@ -62,13 +75,7 @@ async def startup_event() -> None:
     """Startup event handler."""
     print("FastAPI application starting up")
 
-    # Start the token refresh cron job in a separate thread
-    cron_thread = threading.Thread(
-        target=start_cron_job,
-        args=(stop_event,),
-        name="tsc_token_cron_thread",
-    )
-    cron_thread.start()
+    _start_cron_job(start_cron_token, stop_event, "tsc_token_cron_thread")
 
 
 async def shutdown_event() -> None:
@@ -77,7 +84,13 @@ async def shutdown_event() -> None:
 
     # Stop the token refresh cron job
     stop_event.set()
-    _get_thread_by_name("tsc_token_cron_thread").join()
+    try:
+        _get_thread_by_name("tsc_energy_monitor_thread").join()
+        print("Energy monitor cron job stopped")
+        _get_thread_by_name("tsc_token_cron_thread").join()
+        print("Token refresh cron job stopped")
+    except AttributeError:
+        pass
 
 
 def exit_handler() -> None:
@@ -101,11 +114,17 @@ def read_root() -> JSONResponse:
 
 @app.get("/overload")
 def overload() -> JSONResponse:
-    """Overload endpoint.
+    """
+    Overload endpoint.
 
     This endpoint is called when the total consumption of the house exceeds the power
     limit.
     """
+    # If a thread handler already exists no other will be started
+    if _get_thread_by_name("tsc_handle_overload_thread"):
+        response = {"msg": "overload handling session already started"}
+        return JSONResponse(content=response, status_code=202)
+
     try:
         vehicle_data = tesla_api.get_vehicle_data()
     except HTTPException as e:
@@ -128,11 +147,6 @@ def overload() -> JSONResponse:
             response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
         except HTTPException as e:
             return {"error": f"Set charge limit failed: {e!s}"}
-
-        # If a thread handler already exists no other will be started
-        if _get_thread_by_name("tsc_handle_overload_thread"):
-            response = {"msg": "overload handling session already started"}
-            return JSONResponse(content=response, status_code=202)
 
         # Start the overload handler in a separate thread
         overload_thread = threading.Thread(
@@ -194,13 +208,18 @@ def main() -> None:
         type=int,
         help="The port to run the FastAPI server on",
     )
+    parser.add_argument(
+        "-m",
+        "--monitor",
+        action="store_true",
+        help="Monitor the energy consumption of the house",
+    )
     # Vehicles argument to get the list of vehicles from the Tesla API
     # not required to run the FastAPI server
     parser.add_argument(
         "vehicles",
         help="Get the list of vehicles from the Tesla API",
         nargs="?",
-        default=None,
     )
     parser.add_argument(
         "-v",
@@ -227,6 +246,10 @@ def main() -> None:
         utils.show_vehicles(vehicles)
         # Exit the application
         sys.exit(0)
+
+    if args.monitor:
+        # Monitor the energy consumption of the house
+        _start_cron_job(start_cron_monitor, stop_event, "tsc_energy_monitor_thread")
 
     # Start the FastAPI server
     uvicorn.run(app=app, host="0.0.0.0", port=args.port)
