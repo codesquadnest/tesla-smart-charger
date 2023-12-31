@@ -1,4 +1,5 @@
-"""Energy Monitor Controller.
+"""
+Energy Monitor Controller.
 
 This controller is responsible for monitoring the energy usage of the house
 to determine if the power limit can be increased or decreased.
@@ -12,6 +13,7 @@ from abc import ABC, abstractmethod
 
 
 class EnergyMonitorController(ABC):
+
     """Abstract class that defines the interface for the controller."""
 
     @abstractmethod

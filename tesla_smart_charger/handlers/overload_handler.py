@@ -27,7 +27,8 @@ def _calculate_new_charge_limit(
     min_charge_limit: float,
     home_max_amps: float,
 ) -> int:
-    """Calculate the new charge limit.
+    """
+    Calculate the new charge limit.
 
     Based on the current charge limit and the current consumption of the house.
     """

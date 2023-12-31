@@ -10,7 +10,9 @@ from tesla_smart_charger import constants
 
 
 class ChargerConfig:
-    """Configurator class for Tesla Smart Charger.
+
+    """
+    Configurator class for Tesla Smart Charger.
 
     Attributes
     ----------
@@ -20,7 +22,8 @@ class ChargerConfig:
     """
 
     def __init__(self: object, config_file: pathlib) -> None:
-        """Initialize the configurator.
+        """
+        Initialize the configurator.
 
         Args:
         ----
@@ -31,7 +34,8 @@ class ChargerConfig:
         self.config = None
 
     def load_config(self: object) -> dict:
-        """Load the configuration file.
+        """
+        Load the configuration file.
 
         Returns
         -------
@@ -53,7 +57,8 @@ class ChargerConfig:
 
 
     def get_config(self: object) -> dict:
-        """Return the configuration.
+        """
+        Return the configuration.
 
         Returns
         -------
@@ -62,7 +67,8 @@ class ChargerConfig:
         return self.config
 
     def set_config(self: object, config: BaseModel) -> dict:
-        """Set the configuration.
+        """
+        Set the configuration.
 
         Args:
         ----
@@ -85,7 +91,8 @@ class ChargerConfig:
 
     @staticmethod
     def validate_config(config: dict) -> None:
-        """Validate the configuration.
+        """
+        Validate the configuration.
 
         Args:
         ----

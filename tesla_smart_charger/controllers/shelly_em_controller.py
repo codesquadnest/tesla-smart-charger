@@ -1,4 +1,5 @@
-"""Shelly EM controller implementation.
+"""
+Shelly EM controller implementation.
 
 This controller monitors the power consumption of the Shelly EM device
 """
@@ -11,6 +12,7 @@ from tesla_smart_charger.controllers.em_controller import EnergyMonitorControlle
 
 
 class ShellyEMController(EnergyMonitorController):
+
     """Shelly EM controller implementation."""
 
     def __init__(self: object, host: str) -> None:

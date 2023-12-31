@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tesla-smart-charger"
-version = "0.1.1"
+version = "0.1.2"
 description = "Dynamic charge your tesla using default charger"
 authors = ["Pedro Baptista <pedro.miguel.baptista@gmail.com>"]
 license = "MIT"
@@ -75,7 +75,10 @@ ignore = [
   "S104", # bind to all interfaces
   "S105", # possible hardcoded password
   "D201", # No blank lines allowed before function docstring
+  "D211", # No blank lines allowed before class docstring
+  "D212", # No blank lines allowed after function docstring
   "PLR2004", # Use Magic Numbers
+  "PLW0603", # Use of global statement
 ]
 extend-ignore = ["N815"] # mixedCase variable in function scope
 select = ["ALL"]

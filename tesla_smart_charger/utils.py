@@ -2,7 +2,8 @@
 
 
 def show_vehicles(vehicles: dict) -> None:
-    """Show the vehicles.
+    """
+    Show the vehicles.
 
     Args:
     ----
@@ -11,5 +12,8 @@ def show_vehicles(vehicles: dict) -> None:
     """
     # Print the vehicles
     for vehicle in vehicles:
-        print(f"{vehicle['id']:<10} - {vehicle['display_name']:<30}")
-        print("-" * 40)
+        print(
+            f"{vehicle['id']:<10} - {vehicle['display_name']} "
+            f"- VIN - {vehicle['vin']:<30}",
+        )
+        print("-" * 60)

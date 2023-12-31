@@ -103,6 +103,7 @@ def test_set_config(config_file: str) -> None:
     tesla_config.load_config()
 
     class Config(BaseModel):
+
         """Config class for Tesla Smart Charger."""
 
         homeMaxAmps: float
