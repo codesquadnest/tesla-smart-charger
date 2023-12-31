@@ -33,7 +33,7 @@ Dynamic charging control for your Tesla using the default charger.
       "chargerMinAmps": 6.0,
       "downStepPercentage": 0.5,
       "upStepPercentage": 0.25,
-      "sleepTimeSecs": 60,
+      "sleepTimeSecs": 20,
       "energyMonitorIp": "ip-or-hostname",
       "energyMonitorType": "shelly-em",
       "teslaVehicleId": "12345678901234567",
@@ -43,6 +43,8 @@ Dynamic charging control for your Tesla using the default charger.
 
    **Notes:**
       - Choose values wisely
+      - When assigning a different port, make sure to update the `Dockerfile`
+         and set the `apiPort` port in `config.json` to the same value.
 
    
    ```
@@ -55,7 +57,15 @@ Dynamic charging control for your Tesla using the default charger.
 
 
 3. **Energy monitor configuration:**
-   Configure you Energy Monitor to hit the `<tesla-smart-charger>/overload` endpoint when power consumption goes above the configured limit.
+   Configure your Energy Monitor to hit the `<tesla-smart-charger>/overload` endpoint when power consumption goes above the configured limit.
+
+   #### Local Energy Monitor Option
+   Alternatively, you can use the `tesla-smart-charger` `--monitor` option to monitor the power consumption and trigger the overload endpoint when the configured limit is exceeded.
+
+   ```bash
+   tesla-smart-charger --monitor
+   ```
+
 
 4. **Execution:**
    Run the Tesla Smart Charger:
@@ -101,12 +111,12 @@ We welcome contributions to enhance the functionality and features of Tesla Smar
 
 1. **Build Docker Image:**
    ```bash
-   docker build -t tesla-smart-charger:v1 .
+   docker build -t tesla-smart-charger .
    ```
 
 2. **Run Docker Container:**
    ```bash
-   docker run --rm -it -p 8000:8000 tesla-smart-charger:v1
+   docker run --rm -it -p 8000:8000 tesla-smart-charger
    ```
 
 Feel free to contribute and help make Tesla Smart Charger even better!
