@@ -73,7 +73,8 @@ def handle_overload() -> None:
     except HTTPException as e:
         print("Supervised session interrupted!")
         raise HTTPException(
-            status_code=e.status_code, detail=f"Request failed: {e!s}",
+            status_code=e.status_code,
+            detail=f"Request failed: {e!s}",
         ) from e
 
     charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
@@ -82,7 +83,6 @@ def handle_overload() -> None:
         vehicle_data["state"] == "online"
         and vehicle_data["charge_state"]["charging_state"] == "Charging"
         and tesla_api_calls < int(constants.MAX_QUERIES)
-        and int(charger_actual_current) < int(tesla_config.config["chargerMaxAmps"])
     ):
         _reload_config()
         # Get the current charge limit in amps
@@ -123,7 +123,10 @@ def handle_overload() -> None:
             tesla_api_calls = 0
         else:
             print("No change in charge limit")
-            tesla_api_calls += 1
+            if int(charger_actual_current) == int(
+                tesla_config.config["chargerMaxAmps"],
+            ):
+                tesla_api_calls += 1
 
         # Sleep for the configured time
         time.sleep(int(tesla_config.config["sleepTimeSecs"]))
@@ -134,7 +137,8 @@ def handle_overload() -> None:
         except HTTPException as e:
             print("Supervised session interrupted!")
             raise HTTPException(
-                status_code=e.status_code, detail=f"Request failed: {e!s}",
+                status_code=e.status_code,
+                detail=f"Request failed: {e!s}",
             ) from e
 
     print("Overload handled!")
