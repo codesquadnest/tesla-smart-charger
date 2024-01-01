@@ -76,10 +76,13 @@ def handle_overload() -> None:
             status_code=e.status_code, detail=f"Request failed: {e!s}",
         ) from e
 
+    charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
+
     while (
         vehicle_data["state"] == "online"
         and vehicle_data["charge_state"]["charging_state"] == "Charging"
-        and tesla_api_calls < constants.MAX_QUERIES
+        and tesla_api_calls < int(constants.MAX_QUERIES)
+        and int(charger_actual_current) < int(tesla_config.config["chargerMaxAmps"])
     ):
         _reload_config()
         # Get the current charge limit in amps
@@ -106,8 +109,8 @@ def handle_overload() -> None:
             float(tesla_config.config["homeMaxAmps"]),
         )
 
-        print(f"New charge limit: {new_charge_limit}A")
-        if new_charge_limit != charger_actual_current:
+        if int(new_charge_limit) != int(charger_actual_current):
+            print(f"New charge limit: {new_charge_limit}A")
             # Set the new charge limit
             try:
                 tesla_api.set_charge_amp_limit(new_charge_limit)
