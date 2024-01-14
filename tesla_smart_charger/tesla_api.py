@@ -35,7 +35,7 @@ class TeslaAPI:
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
         wait_exponential_max=10000,
-        stop_max_attempt_number=5,
+        stop_max_attempt_number=1,
     )
     def get_vehicles(self: object) -> dict:
         """
