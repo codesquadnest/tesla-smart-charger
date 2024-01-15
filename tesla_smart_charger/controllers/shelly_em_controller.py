@@ -36,12 +36,16 @@ class ShellyEMController(EnergyMonitorController):
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
         wait_exponential_max=10000,
-        stop_max_attempt_number=10,
+        stop_max_attempt_number=1,
     )
     def get_consumption(self: object) -> float:
         """Return the current consumption of the house."""
-        response = requests.get(self.url, timeout=10)
-        response_json = response.json()
+        try:
+            response = requests.get(self.url, timeout=10)
+            response_json = response.json()
+        except Exception as e: # noqa: BLE001
+            err_msg = f"Error getting consumption: {e!s}"
+            raise ValueError(err_msg) from e
         self.last_consumption = self.consumption
 
         if response.status_code == 200:

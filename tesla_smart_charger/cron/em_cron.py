@@ -41,7 +41,7 @@ def _toggle_overload(overload: True) -> bool:
 @retry(
     wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
     wait_exponential_max=10000,
-    stop_max_attempt_number=5,
+    stop_max_attempt_number=1,
 )
 def _check_power_consumption() -> None:
     """Check the power consumption of the house."""
@@ -53,9 +53,9 @@ def _check_power_consumption() -> None:
         print(f"Error getting consumption: {e!s}")
         return
 
-    if current_em_consumption_amps > tesla_config.config[
-        "homeMaxAmps"
-    ] and _toggle_overload(overload=True):
+    if current_em_consumption_amps > float(
+        tesla_config.config["homeMaxAmps"],
+    ) and _toggle_overload(overload=True):
         print("Overload detected!")
         # Call the overload handler endpoint using requests
         try:

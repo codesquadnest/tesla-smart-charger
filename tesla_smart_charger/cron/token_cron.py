@@ -28,7 +28,9 @@ def refresh_tesla_token() -> None:
 
     # Request new token from Tesla API
     token_request = requests.post(
-        constants.TESLA_API_TOKEN_URL, json=refresh_json, timeout=20,
+        constants.TESLA_API_TOKEN_URL,
+        json=refresh_json,
+        timeout=20,
     )
     print(f"New Token : {token_request.text}")
 

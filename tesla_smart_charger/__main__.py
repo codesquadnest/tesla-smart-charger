@@ -53,12 +53,11 @@ tesla_api = TeslaAPI(tesla_config)
 stop_event = threading.Event()
 
 
-def _get_thread_by_name(thread_name: str) -> threading.Thread | None:
+def _get_thread_by_name(thread_name: str) -> threading.Thread:
     for thread in threading.enumerate():
         if thread.name == thread_name:
             return thread
     return None
-
 
 def _start_cron_job(target_job: object, stop_event: threading.Event, name: str) -> None:
     """Start a new cron thread with the provided name."""

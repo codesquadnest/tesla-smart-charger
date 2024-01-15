@@ -1,4 +1,4 @@
-FROM python:3.10-alpine
+FROM python:3.12.1-alpine3.19
 
 ENV API_PORT 8000
 
@@ -18,4 +18,4 @@ RUN pip install --no-cache-dir poetry
 RUN poetry config virtualenvs.create false \
     && poetry install --no-dev --no-interaction --no-ansi
 
-CMD ["tesla-smart-charger"]
+ENTRYPOINT [ "tesla-smart-charger", "-m", "-v" ]
