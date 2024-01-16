@@ -113,10 +113,13 @@ We welcome contributions to enhance the functionality and features of Tesla Smar
    ```bash
    docker build -t tesla-smart-charger .
    ```
-
-2. **Run Docker Container:**
+2. **Get Vehicle ID:**
    ```bash
-   docker run --rm -it -p 8000:8000 tesla-smart-charger
+   docker run -it --rm -v ${PWD}:/app tesla-smart-charger:latest tesla-smart-charger vehicles
+   ```  
+3. **Run Docker Container:**
+   ```bash
+   docker run -it -p 8000:8000 -v ${PWD}:/app --restart unless-stopped --name tesla tesla-smart-charger:latest
    ```
 
 Feel free to contribute and help make Tesla Smart Charger even better!

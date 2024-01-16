@@ -96,8 +96,8 @@ def handle_overload() -> None:
 
         print(
             f"Current charge limit: {charger_actual_current}A, "
-            f"current house consumption: {current_em_consumption}kW, "
-            f"current house consumption: {current_em_consumption_amps}A",
+            f"current house consumption: {current_em_consumption:.2f}kW, "
+            f"current house consumption: {current_em_consumption_amps:.2f}A",
         )
 
         # Calculate the new charge limit
