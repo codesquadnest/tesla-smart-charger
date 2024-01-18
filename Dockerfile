@@ -18,4 +18,7 @@ RUN pip install --no-cache-dir poetry
 RUN poetry config virtualenvs.create false \
     && poetry install --no-dev --no-interaction --no-ansi
 
-ENTRYPOINT [ "tesla-smart-charger", "-m", "-v" ]
+# Clean up config.json, mount your own config.json to /app/config.json
+RUN rm config.json
+
+CMD [ "tesla-smart-charger", "--monitor", "--verbose" ]

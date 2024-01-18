@@ -49,6 +49,7 @@ def _check_power_consumption() -> None:
     _reload_config()
     try:
         current_em_consumption_amps = em_controller.get_consumption() / 230
+        print(f"Current consumption: {current_em_consumption_amps:.2f}A")
     except ValueError as e:
         print(f"Error getting consumption: {e!s}")
         return
@@ -58,15 +59,10 @@ def _check_power_consumption() -> None:
     ) and _toggle_overload(overload=True):
         print("Overload detected!")
         # Call the overload handler endpoint using requests
+        url = f"http://127.0.0.1:{tesla_config.config.get('apiPort', '8000')}/overload"
         try:
-            requests.get(
-                (
-                    f"http://127.0.0.1:{tesla_config.config.get('apiPort', '8000')}"
-                    "/overload"
-                ),
-                timeout=20,
-            )
-        except requests.exceptions.ConnectionError as e:
+            requests.get(url, timeout=5)
+        except Exception as e: # noqa: BLE001
             print(f"Connection error: {e!s}")
             return
     else:
@@ -76,8 +72,8 @@ def _check_power_consumption() -> None:
 def start_cron_monitor(stop_event: threading.Event) -> None:
     """Start the cron job to monitor power consumption."""
     print("Monitoring started!")
-    schedule.every(10).seconds.do(_check_power_consumption)
+    schedule.every(15).seconds.do(_check_power_consumption)
 
     while not stop_event.is_set():
         schedule.run_pending()
-        time.sleep(1)
+        time.sleep(3)
