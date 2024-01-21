@@ -119,7 +119,7 @@ We welcome contributions to enhance the functionality and features of Tesla Smar
    ```  
 3. **Run Docker Container:**
    ```bash
-   docker run -it -p 8000:8000 -v ${PWD}:/app --restart unless-stopped --name tesla tesla-smart-charger:latest
+   docker run -it -p 8000:8000 -v ${PWD}:/app -d --network host --restart unless-stopped --name tesla tesla-smart-charger:latest
    ```
 
 Feel free to contribute and help make Tesla Smart Charger even better!
