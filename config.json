@@ -7,6 +7,8 @@
     "sleepTimeSecs": "10",
     "energyMonitorIp": "ipAddress",
     "energyMonitorType": "shelly_em",
+    "hostIp": "ipAddress",
+    "apiPort": "8000",
     "teslaVehicleId": "12345",
     "teslaAccessToken": "12345",
     "teslaRefreshToken": "12345"
