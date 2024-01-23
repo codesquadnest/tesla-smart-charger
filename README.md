@@ -21,6 +21,8 @@ Dynamic charging control for your Tesla using the default charger.
    - `sleepTimeSecs`: Time in seconds between each check after overload is detected.
    - `energyMonitorIp`: IP address or hostname of the Energy Monitor.
    - `energyMonitorType`: Type of Energy Monitor. Currently only `shelly-em` is supported.
+   - `hostIp`: IP address of the host machine. This is used to send overload notifications to the Energy Monitor thread.
+   - `apiPort`: Port where the Tesla Smart Charger API will be exposed.
    - `teslaVehicleId`: Vehicle ID obtained from the Tesla API.
    - `teslaAccessToken`: Access token obtained from the Tesla API.
    - `teslaRefreshToken`: Refresh token obtained from the Tesla API.
@@ -36,6 +38,8 @@ Dynamic charging control for your Tesla using the default charger.
       "sleepTimeSecs": 20,
       "energyMonitorIp": "ip-or-hostname",
       "energyMonitorType": "shelly-em",
+      "hostIp": "ip-address",
+      "apiPort": 8000,
       "teslaVehicleId": "12345678901234567",
       "teslaAccessToken": "12345678901234567",
       "teslaRefreshToken": "12345678901234567"
@@ -119,7 +123,7 @@ We welcome contributions to enhance the functionality and features of Tesla Smar
    ```  
 3. **Run Docker Container:**
    ```bash
-   docker run -it -p 8000:8000 -v ${PWD}:/app -d --network host --restart unless-stopped --name tesla tesla-smart-charger:latest
+   docker run -it -p 8000:8000 -v ${PWD}:/app -d --restart unless-stopped --name tesla tesla-smart-charger:latest
    ```
 
 Feel free to contribute and help make Tesla Smart Charger even better!

@@ -59,10 +59,13 @@ def _check_power_consumption() -> None:
     ) and _toggle_overload(overload=True):
         print("Overload detected!")
         # Call the overload handler endpoint using requests
-        url = f"http://127.0.0.1:{tesla_config.config.get('apiPort', '8000')}/overload"
+        url = (
+            f"http://{tesla_config.config.get('hostIp', 'localhost')}:"
+            f"{tesla_config.config.get('apiPort', '8000')}/overload"
+        )
         try:
             requests.get(url, timeout=5)
-        except Exception as e: # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             print(f"Connection error: {e!s}")
             return
     else:
