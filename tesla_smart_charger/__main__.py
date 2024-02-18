@@ -10,7 +10,7 @@ import sys
 import threading
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -59,6 +59,7 @@ def _get_thread_by_name(thread_name: str) -> threading.Thread:
             return thread
     return None
 
+
 def _start_cron_job(target_job: object, stop_event: threading.Event, name: str) -> None:
     """Start a new cron thread with the provided name."""
     cron_thread = threading.Thread(
@@ -67,6 +68,52 @@ def _start_cron_job(target_job: object, stop_event: threading.Event, name: str) 
         name=name,
     )
     cron_thread.start()
+
+
+def _handleoverload() -> None:
+    # If a thread handler already exists no other will be started
+    if _get_thread_by_name("tsc_handle_overload_thread"):
+        response = {"msg": "overload handling session already started"}
+        print(response)
+        return
+
+    try:
+        vehicle_data = tesla_api.get_vehicle_data()
+    except HTTPException as e:
+        print(f"Request 'get_vehicle_data' failed: {e!s}")
+        return
+
+    if (
+        vehicle_data["state"] == "online"
+        and vehicle_data["charge_state"]["charging_state"] == "Charging"
+    ):
+        # Get the current charge limit
+        charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
+
+        # Calculate the new charge limit
+        new_charge_limit = int(charger_actual_current) * float(
+            tesla_config.config["downStepPercentage"],
+        )
+
+        try:
+            # Set the new charge limit
+            response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
+        except HTTPException as e:
+            print(f"Request 'set_charge_amp_limit' failed: {e!s}")
+            return
+
+        # Start the overload handler in a separate thread
+        overload_thread = threading.Thread(
+            target=handle_overload,
+            name="tsc_handle_overload_thread",
+        )
+        overload_thread.start()
+
+        response = {"msg": "overload handler session started"}
+        print(response)
+
+    response = {"msg": "overload handling not required"}
+    print(response)
 
 
 # Register the startup and shutdown events
@@ -119,48 +166,10 @@ def overload() -> JSONResponse:
     This endpoint is called when the total consumption of the house exceeds the power
     limit.
     """
-    # If a thread handler already exists no other will be started
-    if _get_thread_by_name("tsc_handle_overload_thread"):
-        response = {"msg": "overload handling session already started"}
-        return JSONResponse(content=response, status_code=202)
-
-    try:
-        vehicle_data = tesla_api.get_vehicle_data()
-    except HTTPException as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {e!s}") from e
-
-    if (
-        vehicle_data["state"] == "online"
-        and vehicle_data["charge_state"]["charging_state"] == "Charging"
-    ):
-        # Get the current charge limit
-        charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
-
-        # Calculate the new charge limit
-        new_charge_limit = int(charger_actual_current) * float(
-            tesla_config.config["downStepPercentage"],
-        )
-
-        try:
-            # Set the new charge limit
-            response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
-        except HTTPException as e:
-            return {"error": f"Set charge limit failed: {e!s}"}
-
-        # Start the overload handler in a separate thread
-        overload_thread = threading.Thread(
-            target=handle_overload,
-            name="tsc_handle_overload_thread",
-        )
-        overload_thread.start()
-
-        response = {"msg": "overload handler session started"}
-        return JSONResponse(content=response, status_code=200)
-
-    response = {"msg": "overload handling not required"}
-    return JSONResponse(content=response, status_code=202)
-
-
+    async def _overload(backgroud_tasks: BackgroundTasks) -> None:
+        backgroud_tasks.add_task(_handleoverload)
+        return JSONResponse(content={"msg": "overload session started"}, status_code=200)
+    
 # Total consumption of the house is below the power limit
 @app.post("/underload")
 def underload() -> JSONResponse:

@@ -49,7 +49,7 @@ def _check_power_consumption() -> None:
     _reload_config()
     try:
         current_em_consumption_amps = em_controller.get_consumption() / 230
-        print(f"Current consumption: {current_em_consumption_amps:.2f}A")
+        # print(f"Current consumption: {current_em_consumption_amps:.2f}A")
     except ValueError as e:
         print(f"Error getting consumption: {e!s}")
         return
