@@ -50,4 +50,4 @@ def start_cron_token(stop_event: threading.Event) -> None:
 
     while not stop_event.is_set():
         schedule.run_pending()
-        time.sleep(5)
+        time.sleep(15)

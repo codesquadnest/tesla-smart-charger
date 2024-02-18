@@ -49,7 +49,7 @@ def _check_power_consumption() -> None:
     _reload_config()
     try:
         current_em_consumption_amps = em_controller.get_consumption() / 230
-        print(f"Current consumption: {current_em_consumption_amps:.2f}A")
+        #print(f"Current consumption: {current_em_consumption_amps:.2f}A")
     except ValueError as e:
         print(f"Error getting consumption: {e!s}")
         return
@@ -79,4 +79,4 @@ def start_cron_monitor(stop_event: threading.Event) -> None:
 
     while not stop_event.is_set():
         schedule.run_pending()
-        time.sleep(3)
+        time.sleep(10)
