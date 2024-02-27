@@ -64,7 +64,8 @@ def _check_power_consumption() -> None:
             f"{tesla_config.config.get('apiPort', '8000')}/overload"
         )
         try:
-            requests.get(url, timeout=5)
+            session = requests.Session()
+            session.get(url, timeout=20)
         except Exception as e:  # noqa: BLE001
             print(f"Connection error: {e!s}")
             return

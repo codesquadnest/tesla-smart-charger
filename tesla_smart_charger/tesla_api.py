@@ -135,7 +135,7 @@ class TeslaAPI:
                 f"{self.charger_config.get_config().get('teslaAccessToken', None)}",
             },
             json={"charging_amps": amp_limit},
-            timeout=20,
+            timeout=10,
         )
         if charge_limit_request.status_code != 200:
             msg = "Request 'set_charge_amp_limit' failed with status code {}".format(
