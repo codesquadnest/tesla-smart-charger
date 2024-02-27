@@ -79,6 +79,7 @@ ignore = [
   "D212", # No blank lines allowed after function docstring
   "PLR2004", # Use Magic Numbers
   "PLW0603", # Use of global statement
+  "ERA001", # Found commented-out code
 ]
 extend-ignore = ["N815"] # mixedCase variable in function scope
 select = ["ALL"]

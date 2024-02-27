@@ -45,9 +45,9 @@ def refresh_tesla_token() -> None:
 
 
 def get_api_status() -> None:
-    "Get API status"
+    """Get API status."""
     response = requests.get(
-        url="localhost:8000",
+        url="http://localhost:8000",
         timeout=5,
     )
     if response.status_code != 200:

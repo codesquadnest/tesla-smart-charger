@@ -63,8 +63,10 @@ class ChargerConfig:
         Returns
         -------
             dict: The configuration.
+
         """
         return self.config
+
 
     def set_config(self: object, config: BaseModel) -> dict:
         """
