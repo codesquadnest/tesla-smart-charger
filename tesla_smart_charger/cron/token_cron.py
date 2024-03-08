@@ -15,7 +15,7 @@ charger_config = ChargerConfig(constants.CONFIG_FILE)
 
 def refresh_tesla_token() -> None:
     """Refresh the Tesla token."""
-    print("Refreshing token!")
+    # print("Refreshing token!")
     charger_config.load_config()
 
     refresh_json = {
@@ -24,7 +24,7 @@ def refresh_tesla_token() -> None:
         "refresh_token": charger_config.get_config().get("teslaRefreshToken", None),
         "scope": "openid email offline_access vehicle_cmds vehicle_charging_cmds",
     }
-    print(refresh_json)
+    # print(refresh_json)
 
     # Request new token from Tesla API
     token_request = requests.post(
@@ -32,11 +32,11 @@ def refresh_tesla_token() -> None:
         json=refresh_json,
         timeout=20,
     )
-    print(f"New Token : {token_request.text}")
+    # print(f"New Token : {token_request.text}")
 
     # Parse the response
     token_response = json.loads(token_request.text)
-    print(token_response)
+    # print(token_response)
 
     # Update the config file
     charger_config.config["teslaAccessToken"] = token_response["access_token"]
@@ -44,10 +44,21 @@ def refresh_tesla_token() -> None:
     charger_config.set_config(json.dumps(charger_config.config))
 
 
+def get_api_status() -> None:
+    """Get API status."""
+    response = requests.get(
+        url="http://localhost:8000",
+        timeout=5,
+    )
+    if response.status_code != 200:
+        print("HEARTBEAT: API not reachable")
+
+
 def start_cron_token(stop_event: threading.Event) -> None:
     """Start the cron job to refresh the Tesla token."""
     schedule.every(2).hours.do(refresh_tesla_token)
+    schedule.every(1).hours.do(get_api_status)
 
     while not stop_event.is_set():
         schedule.run_pending()
-        time.sleep(5)
+        time.sleep(15)

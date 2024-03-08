@@ -34,8 +34,8 @@ class TeslaAPI:
 
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
-        wait_exponential_max=10000,
-        stop_max_attempt_number=1,
+        wait_exponential_max=5000,
+        stop_max_attempt_number=2,
     )
     def get_vehicles(self: object) -> dict:
         """
@@ -71,8 +71,8 @@ class TeslaAPI:
 
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
-        wait_exponential_max=10000,
-        stop_max_attempt_number=5,
+        wait_exponential_max=5000,
+        stop_max_attempt_number=2,
     )
     def get_vehicle_data(self: object) -> dict:
         """
@@ -109,8 +109,8 @@ class TeslaAPI:
 
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
-        wait_exponential_max=10000,
-        stop_max_attempt_number=5,
+        wait_exponential_max=5000,
+        stop_max_attempt_number=2,
     )
     def set_charge_amp_limit(self: object, amp_limit: int) -> dict:
         """
@@ -135,7 +135,7 @@ class TeslaAPI:
                 f"{self.charger_config.get_config().get('teslaAccessToken', None)}",
             },
             json={"charging_amps": amp_limit},
-            timeout=20,
+            timeout=10,
         )
         if charge_limit_request.status_code != 200:
             msg = "Request 'set_charge_amp_limit' failed with status code {}".format(
