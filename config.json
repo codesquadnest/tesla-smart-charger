@@ -11,5 +11,7 @@
     "apiPort": "8000",
     "teslaVehicleId": "12345",
     "teslaAccessToken": "12345",
-    "teslaRefreshToken": "12345"
+    "teslaRefreshToken": "12345",
+    "teslaHttpProxy": "http://ipAddress:port",
+    "teslaClientId": "12345678901234567"
 }

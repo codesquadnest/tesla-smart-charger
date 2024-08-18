@@ -1,0 +1,23 @@
+# Docker Compose file for running the application
+services:
+  tesla-http-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.tesla-http-proxy
+    container_name: tesla-http-proxy
+    volumes:
+      - ./certs:/app/certs:ro
+    ports:
+      - "4443:4443"
+    restart: unless-stopped
+  
+  tesla-smart-charger:
+    build:
+      context: .
+      dockerfile: Dockerfile.tesla-smart-charger
+    container_name: tesla-smart-charger
+    volumes:
+      - ./config.json:/app/config.json
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

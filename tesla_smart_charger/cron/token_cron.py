@@ -7,58 +7,65 @@ import time
 import requests
 import schedule
 
+import tesla_smart_charger.logger as logger
 from tesla_smart_charger import constants
 from tesla_smart_charger.charger_config import ChargerConfig
 
+# Set up logging
+tsc_logger = logger.get_logger()
+
+# Load charger configuration
 charger_config = ChargerConfig(constants.CONFIG_FILE)
 
 
 def refresh_tesla_token() -> None:
     """Refresh the Tesla token."""
-    # print("Refreshing token!")
+    tsc_logger.info("Refreshing Tesla token...")
     charger_config.load_config()
 
-    refresh_json = {
+    data = {
         "grant_type": "refresh_token",
-        "client_id": "ownerapi",
+        "client_id": charger_config.get_config().get("teslaClientId", None),
         "refresh_token": charger_config.get_config().get("teslaRefreshToken", None),
-        "scope": "openid email offline_access vehicle_cmds vehicle_charging_cmds",
     }
-    # print(refresh_json)
 
-    # Request new token from Tesla API
-    token_request = requests.post(
-        constants.TESLA_API_TOKEN_URL,
-        json=refresh_json,
-        timeout=20,
-    )
-    # print(f"New Token : {token_request.text}")
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
 
-    # Parse the response
-    token_response = json.loads(token_request.text)
-    # print(token_response)
+    try:
+        # Request new token from Tesla API
+        token_request = requests.post(
+            constants.TESLA_API_TOKEN_URL,
+            data=data,
+            headers=headers,
+            timeout=20,
+        )
+        token_request.raise_for_status()  # Raises an error for HTTP codes 4xx/5xx
+        tsc_logger.info("Token request sent successfully.")
+    except requests.RequestException as e:
+        tsc_logger.error(f"Error refreshing token: {e!s}")
+        return
 
-    # Update the config file
-    charger_config.config["teslaAccessToken"] = token_response["access_token"]
-    charger_config.config["teslaRefreshToken"] = token_response["refresh_token"]
-    charger_config.set_config(json.dumps(charger_config.config))
-
-
-def get_api_status() -> None:
-    """Get API status."""
-    response = requests.get(
-        url="http://localhost:8000",
-        timeout=5,
-    )
-    if response.status_code != 200:
-        print("HEARTBEAT: API not reachable")
+    try:
+        # Parse the response and update the configuration
+        token_response = token_request.json()
+        charger_config.config["teslaAccessToken"] = token_response["access_token"]
+        charger_config.config["teslaRefreshToken"] = token_response["refresh_token"]
+        charger_config.set_config(json.dumps(charger_config.config))
+        tsc_logger.info("Tesla token refreshed and updated successfully.")
+    except (KeyError, json.JSONDecodeError) as e:
+        tsc_logger.error(f"Error parsing token response: {e!s}")
 
 
 def start_cron_token(stop_event: threading.Event) -> None:
     """Start the cron job to refresh the Tesla token."""
+    tsc_logger.info("Starting cron job for token refresh ...")
+    refresh_tesla_token()
     schedule.every(2).hours.do(refresh_tesla_token)
-    schedule.every(1).hours.do(get_api_status)
 
     while not stop_event.is_set():
         schedule.run_pending()
-        time.sleep(15)
+        time.sleep(1)
+    
+    tsc_logger.info("Token refresh cron job stopped.")

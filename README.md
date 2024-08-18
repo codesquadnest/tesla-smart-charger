@@ -26,6 +26,8 @@ Dynamic charging control for your Tesla using the default charger.
    - `teslaVehicleId`: Vehicle ID obtained from the Tesla API.
    - `teslaAccessToken`: Access token obtained from the Tesla API.
    - `teslaRefreshToken`: Refresh token obtained from the Tesla API.
+   - `teslaHttpProxy`: HTTP proxy to use when connecting to the Tesla API.
+   - `teslaClientId`: Client ID obtained from the Tesla API.
 
    The configuration file is located at `config.json` and should look like this:
    ```json
@@ -42,7 +44,9 @@ Dynamic charging control for your Tesla using the default charger.
       "apiPort": 8000,
       "teslaVehicleId": "12345678901234567",
       "teslaAccessToken": "12345678901234567",
-      "teslaRefreshToken": "12345678901234567"
+      "teslaRefreshToken": "12345678901234567",
+      "teslaHttpProxy": "http://proxy:port",
+      "teslaClientId": "12345678901234567"
    }
 
    **Notes:**

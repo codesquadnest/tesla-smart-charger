@@ -1,34 +1,34 @@
 """Tesla API class for Tesla Smart Charger."""
 
-import json
-
 import requests
 from fastapi import HTTPException
 from retrying import retry
 
-from tesla_smart_charger import constants
+from tesla_smart_charger import constants, logger
 from tesla_smart_charger.charger_config import ChargerConfig
+
+# Set up logging
+tsc_logger = logger.get_logger()
 
 
 class TeslaAPI:
-
     """
     Tesla API class for Tesla Smart Charger.
 
     Attributes
     ----------
-        charger_config (ChargerConfig): The charger configuration.
-
+    charger_config : ChargerConfig
+        The charger configuration.
     """
 
-    def __init__(self: object, charger_config: ChargerConfig) -> None:
+    def __init__(self, charger_config: ChargerConfig) -> None:
         """
         Initialize the Tesla API.
 
-        Args:
-        ----
-            charger_config (ChargerConfig): The charger configuration.
-
+        Parameters
+        ----------
+        charger_config : ChargerConfig
+            The charger configuration.
         """
         self.charger_config = charger_config
 
@@ -37,115 +37,125 @@ class TeslaAPI:
         wait_exponential_max=5000,
         stop_max_attempt_number=2,
     )
-    def get_vehicles(self: object) -> dict:
+    def get_vehicles(self) -> dict:
         """
         Get the vehicles from the Tesla API.
 
         Returns
         -------
-            dict: The vehicles.
-
+        dict
+            The vehicles.
         """
-        # Get the vehicles from the Tesla API
-        vehicle_request = requests.get(
-            constants.TESLA_API_VEHICLES_URL,
-            headers={
-                "Authorization": f"Bearer "
-                f"{self.charger_config.get_config().get('teslaAccessToken', None)}",
-            },
-            timeout=20,
-        )
-
-        if vehicle_request.status_code != 200:
-            msg = "Request 'get_vehicles' failed with status code {}".format(
-                vehicle_request.status_code,
+        tsc_logger.info("Requesting vehicles from Tesla API.")
+        try:
+            vehicle_request = requests.get(
+                constants.TESLA_API_VEHICLES_URL,
+                headers={
+                    "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
+                },
+                verify=constants.TLS_CERT_PATH,
+                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                timeout=20,
             )
-            raise HTTPException(vehicle_request.status_code, msg)
+            vehicle_request.raise_for_status()
+        except requests.RequestException as e:
+            msg = f"Request 'get_vehicles' failed: {e}"
+            tsc_logger.error(msg)
+            raise HTTPException(status_code=vehicle_request.status_code, detail=msg)
 
-        response = json.loads(vehicle_request.text)
+        response = vehicle_request.json()
 
         if constants.VERBOSE:
-            print(response)
+            tsc_logger.debug(response)
 
-        return response["response"]
+        return response.get("response", {})
 
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
         wait_exponential_max=5000,
         stop_max_attempt_number=2,
     )
-    def get_vehicle_data(self: object) -> dict:
+    def get_vehicle_data(self) -> dict:
         """
         Get the vehicle data from the Tesla API.
 
         Returns
         -------
-            dict: The vehicle data.
-
+        dict
+            The vehicle data.
         """
-        # Get the vehicle data from the Tesla API
-        vehicle_request = requests.get(
-            constants.TESLA_API_VEHICLE_DATA_URL.format(
-                id=self.charger_config.get_config().get("teslaVehicleId", None),
-            ),
-            headers={
-                "Authorization": f"Bearer "
-                f"{self.charger_config.get_config().get('teslaAccessToken', None)}",
-            },
-            timeout=20,
-        )
-        if vehicle_request.status_code != 200:
-            msg = "Request 'get_vehicle_data' failed with status code {}".format(
-                vehicle_request.status_code,
-            )
-            raise HTTPException(vehicle_request.status_code, msg)
+        vehicle_id = self.charger_config.get_config().get("teslaVehicleId")
+        tsc_logger.info(f"Requesting data for vehicle ID {vehicle_id} from Tesla API.")
 
-        response = json.loads(vehicle_request.text)
+        try:
+            vehicle_request = requests.get(
+                constants.TESLA_API_VEHICLE_DATA_URL.format(id=vehicle_id),
+                headers={
+                    "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
+                },
+                verify=constants.TLS_CERT_PATH,
+                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                timeout=20,
+            )
+            vehicle_request.raise_for_status()
+        except requests.RequestException as e:
+            msg = f"Request 'get_vehicle_data' failed: {e}"
+            tsc_logger.error(msg)
+            raise HTTPException(status_code=vehicle_request.status_code, detail=msg)
+
+        response = vehicle_request.json()
 
         if constants.VERBOSE:
-            print(response)
+            tsc_logger.debug(response)
 
-        return response["response"]
+        return response.get("response", {})
 
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
         wait_exponential_max=5000,
         stop_max_attempt_number=2,
     )
-    def set_charge_amp_limit(self: object, amp_limit: int) -> dict:
+    def set_charge_amp_limit(self, amp_limit: int) -> dict:
         """
         Set the charge Amperage limit.
 
-        Args:
-        ----
-            amp_limit (int): The Amperage limit.
+        Parameters
+        ----------
+        amp_limit : int
+            The Amperage limit.
 
-        Returns:
+        Returns
         -------
-            dict: The response.
-
+        dict
+            The response.
         """
-        # Set the charge Amperage limit
-        charge_limit_request = requests.post(
-            constants.TESLA_API_CHARGE_AMP_LIMIT_URL.format(
-                id=self.charger_config.get_config().get("teslaVehicleId", None),
-            ),
-            headers={
-                "Authorization": f"Bearer "
-                f"{self.charger_config.get_config().get('teslaAccessToken', None)}",
-            },
-            json={"charging_amps": amp_limit},
-            timeout=10,
+        vehicle_id = self.charger_config.get_config().get("teslaVehicleId")
+        tsc_logger.info(
+            f"Setting charge amperage limit to {amp_limit}A for vehicle ID {vehicle_id}."
         )
-        if charge_limit_request.status_code != 200:
-            msg = "Request 'set_charge_amp_limit' failed with status code {}".format(
-                charge_limit_request.status_code,
-            )
-            raise HTTPException(charge_limit_request.status_code, msg)
 
-        response = json.loads(charge_limit_request.text)
+        try:
+            charge_limit_request = requests.post(
+                constants.TESLA_API_CHARGE_AMP_LIMIT_URL.format(id=vehicle_id),
+                headers={
+                    "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
+                },
+                json={"charging_amps": amp_limit},
+                verify=constants.TLS_CERT_PATH,
+                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                timeout=10,
+            )
+            charge_limit_request.raise_for_status()
+        except requests.RequestException as e:
+            msg = f"Request 'set_charge_amp_limit' failed: {e}"
+            tsc_logger.error(msg)
+            raise HTTPException(
+                status_code=charge_limit_request.status_code, detail=msg
+            )
+
+        response = charge_limit_request.json()
 
         if constants.VERBOSE:
-            print(response)
+            tsc_logger.debug(response)
 
         return response

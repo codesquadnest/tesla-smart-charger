@@ -1,7 +1,7 @@
 """
-Shelly EM controller implementation.
+Shelly EM Controller Implementation.
 
-This controller monitors the power consumption of the Shelly EM device
+This controller monitors and manages the power consumption of the Shelly EM device.
 """
 
 import requests
@@ -12,25 +12,39 @@ from tesla_smart_charger.controllers.em_controller import EnergyMonitorControlle
 
 
 class ShellyEMController(EnergyMonitorController):
+    """Implementation of the Shelly EM energy monitor controller."""
 
-    """Shelly EM controller implementation."""
+    def __init__(self, host: str) -> None:
+        """
+        Initialize the Shelly EM controller.
 
-    def __init__(self: object, host: str) -> None:
-        """Initialize the Shelly EM controller."""
+        Args:
+            host (str): The IP address or hostname of the Shelly EM device.
+        """
         self.type = "shelly_em"
         self.state = constants.EM_CONTROLLER_STATE_IDLE
-        self.consumption = 0
-        self.last_consumption = 0
-        self.emeter0 = 0
-        self.emeter1 = 0
+        self.consumption = 0.0
+        self.last_consumption = 0.0
+        self.emeter0 = 0.0
+        self.emeter1 = 0.0
         self.url = f"http://{host}/status/"
 
-    def get_state(self: object) -> str:
-        """Return the current state of the controller."""
+    def get_state(self) -> str:
+        """
+        Get the current state of the controller.
+
+        Returns:
+            str: The current state of the controller.
+        """
         return self.state
 
-    def set_state(self: object, state: str) -> None:
-        """Set the current state of the controller."""
+    def set_state(self, state: str) -> None:
+        """
+        Set the current state of the controller.
+
+        Args:
+            state (str): The new state of the controller.
+        """
         self.state = state
 
     @retry(
@@ -38,21 +52,29 @@ class ShellyEMController(EnergyMonitorController):
         wait_exponential_max=10000,
         stop_max_attempt_number=1,
     )
-    def get_consumption(self: object) -> float:
-        """Return the current consumption of the house."""
+    def get_consumption(self) -> float:
+        """
+        Get the current power consumption of the house.
+
+        Returns:
+            float: The current power consumption in watts.
+
+        Raises:
+            ValueError: If there is an error retrieving the consumption data.
+        """
         try:
             response = requests.get(self.url, timeout=10)
-            response_json = response.json()
-        except Exception as e: # noqa: BLE001
-            err_msg = f"Error getting consumption: {e!s}"
-            raise ValueError(err_msg) from e
+            response.raise_for_status()  # Raises an HTTPError for bad responses
+            data = response.json()
+        except requests.RequestException as e:
+            raise ValueError(f"Error getting consumption: {e}") from e
+
+        # Save the last known consumption
         self.last_consumption = self.consumption
 
-        if response.status_code == 200:
-            self.emeter0 = response_json["emeters"][0]["power"]
-            self.emeter1 = response_json["emeters"][1]["power"]
-            self.consumption = self.emeter0 + self.emeter1
-        else:
-            self.consumption = 0
+        # Extract and sum the power readings from both meters
+        self.emeter0 = data.get("emeters", [{}])[0].get("power", 0.0)
+        self.emeter1 = data.get("emeters", [{}])[1].get("power", 0.0)
+        self.consumption = self.emeter0 + self.emeter1
 
         return self.consumption

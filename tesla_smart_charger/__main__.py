@@ -1,10 +1,11 @@
 """
-Tesla smart car charger.
+Tesla Smart Car Charger.
 
 This script is the main entry point for the Tesla smart car charger.
 """
 
 import argparse
+import asyncio
 import atexit
 import sys
 import threading
@@ -12,9 +13,10 @@ import threading
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from tesla_smart_charger import constants, utils
+from tesla_smart_charger import constants, utils, logger
 from tesla_smart_charger.charger_config import ChargerConfig
 from tesla_smart_charger.cron.em_cron import start_cron_monitor
 from tesla_smart_charger.cron.token_cron import start_cron_token
@@ -23,9 +25,7 @@ from tesla_smart_charger.tesla_api import TeslaAPI
 
 
 class Config(BaseModel):
-
     """Config class for Tesla Smart Charger."""
-
     homeMaxAmps: float
     chargerMaxAmps: float
     chargerMinAmps: float
@@ -37,10 +37,22 @@ class Config(BaseModel):
     teslaVehicleId: str
     teslaAccessToken: str
     teslaRefreshToken: str
+    teslaHttpProxy: str
+    teslaClientId: str
 
+
+# Set up tsm_logger
+tsm_logger = logger.get_logger()
 
 # Create the FastAPI app
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Create the charger config object
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
@@ -54,12 +66,13 @@ stop_event = threading.Event()
 
 
 def _get_thread_by_name(thread_name: str) -> threading.Thread:
+    """Retrieve a thread by its name."""
     for thread in threading.enumerate():
         if thread.name == thread_name:
             return thread
     return None
 
-def _start_cron_job(target_job: object, stop_event: threading.Event, name: str) -> None:
+def _start_cron_job(target_job: callable, stop_event: threading.Event, name: str) -> None:
     """Start a new cron thread with the provided name."""
     cron_thread = threading.Thread(
         target=target_job,
@@ -72,34 +85,33 @@ def _start_cron_job(target_job: object, stop_event: threading.Event, name: str) 
 # Register the startup and shutdown events
 async def startup_event() -> None:
     """Startup event handler."""
-    print("FastAPI application starting up")
-
+    tsm_logger.info("FastAPI application starting up")
     _start_cron_job(start_cron_token, stop_event, "tsc_token_cron_thread")
-
 
 async def shutdown_event() -> None:
     """Shutdown event handler."""
-    print("FastAPI application shutting down")
+    tsm_logger.info("FastAPI application shutting down")
 
-    # Stop the token refresh cron job
+    # Signal the cron jobs to stop
     stop_event.set()
-    try:
-        _get_thread_by_name("tsc_energy_monitor_thread").join()
-        print("Energy monitor cron job stopped")
-        _get_thread_by_name("tsc_token_cron_thread").join()
-        print("Token refresh cron job stopped")
-    except AttributeError:
-        pass
 
+    # Wait for the cron jobs to stop
+    for thread in threading.enumerate():
+        if thread.name in ["tsc_energy_monitor_thread", "tsc_token_cron_thread"]:
+            thread.join()
+            tsm_logger.info(f"{thread.name} stopped")
+
+    await asyncio.sleep(2)
 
 def exit_handler() -> None:
     """Exit handler."""
-    # Perform cleanup or final tasks here
+    tsm_logger.info("Performing cleanup tasks before exit")
 
 
 # Register the exit_handler to run when the application exits
 atexit.register(exit_handler)
 
+# Add event handlers to the FastAPI app
 app.add_event_handler("startup", startup_event)
 app.add_event_handler("shutdown", shutdown_event)
 
@@ -119,7 +131,7 @@ def overload() -> JSONResponse:
     This endpoint is called when the total consumption of the house exceeds the power
     limit.
     """
-    # If a thread handler already exists no other will be started
+    # If a thread handler already exists, no other will be started
     if _get_thread_by_name("tsc_handle_overload_thread"):
         response = {"msg": "overload handling session already started"}
         return JSONResponse(content=response, status_code=202)
@@ -161,7 +173,6 @@ def overload() -> JSONResponse:
     return JSONResponse(content=response, status_code=202)
 
 
-# Total consumption of the house is below the power limit
 @app.post("/underload")
 def underload() -> JSONResponse:
     """Underload endpoint."""
@@ -169,10 +180,9 @@ def underload() -> JSONResponse:
     return JSONResponse(content=response, status_code=404)
 
 
-# Get the current configuration
 @app.get("/config")
 def get_config() -> JSONResponse:
-    """Config endpoint."""
+    """Get the current configuration."""
     tesla_config.load_config()
     response = tesla_config.get_config()
 
@@ -184,13 +194,13 @@ def get_config() -> JSONResponse:
 
 @app.post("/config")
 def set_config(config: Config) -> JSONResponse:
-    """Config endpoint."""
-    response = tesla_config.set_config(config.model_dump_json())
-
-    if "error" in response:
-        raise HTTPException(status_code=500, detail=response["error"])
-
-    return response
+    """Set the configuration."""
+    try:
+        tesla_config.set_config(config.model_dump_json())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to set config: {e!s}")
+    
+    return JSONResponse(content={"msg": "Configuration updated successfully"}, status_code=200)
 
 
 def main() -> None:
@@ -213,8 +223,6 @@ def main() -> None:
         action="store_true",
         help="Monitor the energy consumption of the house",
     )
-    # Vehicles argument to get the list of vehicles from the Tesla API
-    # not required to run the FastAPI server
     parser.add_argument(
         "vehicles",
         help="Get the list of vehicles from the Tesla API",
@@ -233,6 +241,7 @@ def main() -> None:
 
     # Configure verbose mode
     if args.verbose:
+        # tsm_logger.getLogger().setLevel(tsm_logger.DEBUG)
         constants.VERBOSE = True
 
     if args.vehicles:
@@ -240,10 +249,9 @@ def main() -> None:
         try:
             vehicles = tesla_api.get_vehicles()
         except HTTPException as e:
-            print("Request failed:", str(e))
+            tsm_logger.error(f"Request failed: {str(e)}")
             sys.exit(1)
         utils.show_vehicles(vehicles)
-        # Exit the application
         sys.exit(0)
 
     if args.monitor:
