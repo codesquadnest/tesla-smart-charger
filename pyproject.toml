@@ -23,7 +23,7 @@ tesla-smart-charger = "tesla_smart_charger.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.8, <4.0"
-requests = "^2.31.0"
+requests = "^2.32.3"
 fastapi = "^0.109.0"
 uvicorn = {extras = ["standard"], version = "^0.30.6"}
 schedule = "^1.2.1"
