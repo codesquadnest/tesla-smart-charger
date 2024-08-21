@@ -2,7 +2,8 @@
 
 
 import json
-import pathlib
+
+from pathlib import Path
 
 from pydantic import BaseModel
 
@@ -16,21 +17,21 @@ class ChargerConfig:
 
     Attributes
     ----------
-        config_file (pathlib): Path to the configuration file.
+        config_file (Path): Path to the configuration file.
         config (dict): The configuration.
 
     """
 
-    def __init__(self: object, config_file: pathlib) -> None:
+    def __init__(self: object, config_file: Path) -> None:
         """
         Initialize the configurator.
 
         Args:
         ----
-            config_file (pathlib): Path to the configuration file.
+            config_file (Path): Path to the configuration file.
 
         """
-        self.config_file = config_file
+        self.config_file = Path(config_file)
         self.config = None
 
     def load_config(self: object) -> dict:
@@ -43,7 +44,7 @@ class ChargerConfig:
 
         """
         try:
-            with pathlib.Path.open(pathlib.Path(self.config_file), "r") as file:
+            with Path.open(self.config_file, "r") as file:
                 self.config = json.load(file)
             self.validate_config(self.config)
         except FileNotFoundError as error:
@@ -83,7 +84,7 @@ class ChargerConfig:
         """
         try:
             self.validate_config(config)
-            with pathlib.Path.open(pathlib.Path(self.config_file), "w") as file:
+            with Path.open(self.config_file, "w") as file:
                 file.write(config)
             self.load_config()
         except ValueError as error:

@@ -24,6 +24,8 @@ def config_file(tmp_path: str) -> str:
         "teslaVehicleId": "1234567890",
         "teslaAccessToken": "1234567890",
         "teslaRefreshToken": "0987654321",
+        "teslaHttpProxy": "https://localhost:4443",
+        "teslaClientId": "12234567890",
     }
     config_file = tmp_path / "config.json"
     with pathlib.Path.open(pathlib.Path(config_file), "w") as file:
@@ -47,6 +49,8 @@ def test_load_config(config_file: str) -> None:
         "teslaVehicleId": "1234567890",
         "teslaAccessToken": "1234567890",
         "teslaRefreshToken": "0987654321",
+        "teslaHttpProxy": "https://localhost:4443",
+        "teslaClientId": "12234567890",
     }
 
 
@@ -94,6 +98,8 @@ def test_get_config(config_file: str) -> None:
         "teslaVehicleId": "1234567890",
         "teslaAccessToken": "1234567890",
         "teslaRefreshToken": "0987654321",
+        "teslaHttpProxy": "https://localhost:4443",
+        "teslaClientId": "12234567890",
     }
 
 
@@ -117,6 +123,8 @@ def test_set_config(config_file: str) -> None:
         teslaVehicleId: str
         teslaAccessToken: str
         teslaRefreshToken: str
+        teslaHttpProxy: str
+        teslaClientId: str
 
     test_config = Config(
         homeMaxAmps=11.0,
@@ -130,6 +138,8 @@ def test_set_config(config_file: str) -> None:
         teslaVehicleId="1234567890",
         teslaAccessToken="1234567890",
         teslaRefreshToken="0987654321",
+        teslaHttpProxy="https://localhost:4443",
+        teslaClientId="12234567890",
     )
 
     tesla_config.set_config(test_config.model_dump_json())
@@ -145,6 +155,8 @@ def test_set_config(config_file: str) -> None:
         "teslaVehicleId": "1234567890",
         "teslaAccessToken": "1234567890",
         "teslaRefreshToken": "0987654321",
+        "teslaHttpProxy": "https://localhost:4443",
+        "teslaClientId": "12234567890",
     }
 
 
@@ -174,6 +186,8 @@ def test_validate_config() -> None:
             "teslaVehicleId": "1234567890",
             "teslaAccessToken": "1234567890",
             "teslaRefreshToken": "0987654321",
+            "teslaHttpProxy": "https://localhost:4443",
+            "teslaClientId": "12234567890",
         },
     )
     with pytest.raises(ValueError): # noqa: PT011

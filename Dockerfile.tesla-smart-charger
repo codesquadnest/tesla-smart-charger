@@ -1,0 +1,64 @@
+# Description: Dockerfile for the tesla-smart-charger application
+
+# Stage 1: Build the application
+FROM python:3.12-slim AS builder
+
+# Set environment variables to avoid creating .pyc files and ensure UTF-8 encoding
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+
+# Install dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry
+RUN pip install poetry
+
+# Copy the project files
+WORKDIR /app
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies using Poetry
+RUN poetry install --no-dev
+
+# Copy the application code
+COPY tesla_smart_charger tesla_smart_charger
+COPY README.md README.md
+COPY certs certs
+
+RUN poetry build
+
+# Remove unnecessary files
+RUN rm /app/certs/private-key.pem && \
+    rm /app/certs/public-key.pem
+
+# Stage 2: Create the final image
+FROM python:3.12-slim
+
+# Set environment variables
+ENV TZ=Europe/Lisbon
+ENV API_PORT=8000
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy your application code
+COPY --from=builder /app /app
+
+# Set environment variables
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Set the working directory
+WORKDIR /app
+
+# Expose the port for the application
+EXPOSE ${API_PORT}
+
+# Install the application from dist
+RUN pip install --no-cache-dir /app/dist/*.whl
+
+# Define the command to run your application
+CMD ["tesla-smart-charger", "--monitor", "--verbose"]

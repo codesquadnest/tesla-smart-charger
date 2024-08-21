@@ -1,5 +1,11 @@
 """Constants for the Tesla Smart Charger integration."""
 
+from pathlib import Path
+
+# Path to the certificate file
+TLS_CERT_PATH = f"{Path(__file__).resolve().parent.parent / 'certs' / 'tls-cert.pem'}"
+TLS_KEY_PATH = f"{Path(__file__).resolve().parent.parent / 'certs' / 'tls-key.pem'}"
+
 # Verbose mode
 VERBOSE = False
 
@@ -28,6 +34,8 @@ DEFAULT_CONFIG = {
     "teslaVehicleId": "",
     "teslaAccessToken": "",
     "teslaRefreshToken": "",
+    "teslaHttpProxy": "",
+    "teslaClientId": "",
 }
 
 # Required configuration keys
@@ -43,10 +51,12 @@ REQUIRED_CONFIG_KEYS = [
     "teslaVehicleId",
     "teslaAccessToken",
     "teslaRefreshToken",
+    "teslaHttpProxy",
+    "teslaClientId",
 ]
 
 # Base URL for the Tesla API
-TESLA_API_BASE_URL = "https://owner-api.teslamotors.com"
+TESLA_API_BASE_URL = "https://localhost:4443"
 
 # URL for the Tesla API to get the access token
 TESLA_API_TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token"
