@@ -62,10 +62,10 @@ def start_cron_token(stop_event: threading.Event) -> None:
     """Start the cron job to refresh the Tesla token."""
     tsc_logger.info("Starting cron job for token refresh ...")
     refresh_tesla_token()
-    schedule.every(2).hours.do(refresh_tesla_token)
+    schedule.every(7).hours.do(refresh_tesla_token)
 
     while not stop_event.is_set():
         schedule.run_pending()
         time.sleep(1)
-    
+
     tsc_logger.info("Token refresh cron job stopped.")
