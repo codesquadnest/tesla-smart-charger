@@ -31,6 +31,7 @@ class TeslaAPI:
             The charger configuration.
         """
         self.charger_config = charger_config
+        self.http_proxy = self.charger_config.get_config().get("teslaHttpProxy", None)
 
     @retry(
         wait_exponential_multiplier=constants.REQUEST_DELAY_MS,
@@ -47,9 +48,10 @@ class TeslaAPI:
             The vehicles.
         """
         tsc_logger.info("Requesting vehicles from Tesla API.")
+
         try:
             vehicle_request = requests.get(
-                constants.TESLA_API_VEHICLES_URL,
+                f"{self.http_proxy}{constants.TESLA_API_VEHICLES_URL}",
                 headers={
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
@@ -89,7 +91,7 @@ class TeslaAPI:
 
         try:
             vehicle_request = requests.get(
-                constants.TESLA_API_VEHICLE_DATA_URL.format(id=vehicle_id),
+                f"{self.http_proxy}{constants.TESLA_API_VEHICLE_DATA_URL.format(id=vehicle_id)}",
                 headers={
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
@@ -136,7 +138,7 @@ class TeslaAPI:
 
         try:
             charge_limit_request = requests.post(
-                constants.TESLA_API_CHARGE_AMP_LIMIT_URL.format(id=vehicle_id),
+                f"{self.http_proxy}{constants.TESLA_API_CHARGE_AMP_LIMIT_URL.format(id=vehicle_id)}",
                 headers={
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },

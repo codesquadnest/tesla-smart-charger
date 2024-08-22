@@ -1,10 +1,8 @@
 """Constants for the Tesla Smart Charger integration."""
 
-from pathlib import Path
-
 # Path to the certificate file
-TLS_CERT_PATH = f"{Path(__file__).resolve().parent.parent / 'certs' / 'tls-cert.pem'}"
-TLS_KEY_PATH = f"{Path(__file__).resolve().parent.parent / 'certs' / 'tls-key.pem'}"
+TLS_CERT_PATH = "certs/tls-cert.pem"
+TLS_KEY_PATH = "certs/tls-key.pem"
 
 # Verbose mode
 VERBOSE = False
@@ -55,21 +53,18 @@ REQUIRED_CONFIG_KEYS = [
     "teslaClientId",
 ]
 
-# Base URL for the Tesla API
-TESLA_API_BASE_URL = "https://localhost:4443"
-
 # URL for the Tesla API to get the access token
 TESLA_API_TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token"
 
 # URL for the Tesla API to get the vehicle list
-TESLA_API_VEHICLES_URL = f"{TESLA_API_BASE_URL}/api/1/vehicles"
+TESLA_API_VEHICLES_URL = "/api/1/vehicles"
 
 # URL for the Tesla API to get the vehicle data
-TESLA_API_VEHICLE_DATA_URL = f"{TESLA_API_BASE_URL}/api/1/vehicles/{{id}}/vehicle_data"
+TESLA_API_VEHICLE_DATA_URL = f"/api/1/vehicles/{{id}}/vehicle_data" # noqa: F541
 
 # URL for the Tesla API to set the charging Amperage limit
 TESLA_API_CHARGE_AMP_LIMIT_URL = (
-    f"{TESLA_API_BASE_URL}/api/1/vehicles/{{id}}/command/set_charging_amps"
+    f"/api/1/vehicles/{{id}}/command/set_charging_amps" # noqa: F541
 )
 
 # Energy Monitor Controller states

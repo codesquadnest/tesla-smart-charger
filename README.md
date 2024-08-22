@@ -95,14 +95,15 @@ charging command to the vehicle.
    6. Generate a self-signed certificate:
        - Generate a self-signed certificate for tesla-http-proxy:
        ```bash
+       export HTTPS_PROXY=127.0.0.1 # The IP address of the host machine.
        openssl req -x509 -nodes -newkey ec \
-       -pkeyopt ec_paramgen_curve:secp521r1 \
-       -pkeyopt ec_param_enc:named_curve  \
-       -subj '/CN=localhost' \
-       -keyout tls-key.pem -out tls-cert.pem -sha256 -days 3650 \
-       -addext "subjectAltName = DNS:localhost" \
-       -addext "extendedKeyUsage = serverAuth" \
-       -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
+        -pkeyopt ec_paramgen_curve:secp521r1 \
+        -pkeyopt ec_param_enc:named_curve \
+        -subj '/CN=localhost' \
+        -keyout tls-key.pem -out tls-cert.pem -sha256 -days 3650 \
+        -addext "subjectAltName = DNS:localhost, IP:$HTTPS_PROXY" \
+        -addext "extendedKeyUsage = serverAuth" \
+        -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
        ```
    
    7. Start the tesla-http-proxy:
