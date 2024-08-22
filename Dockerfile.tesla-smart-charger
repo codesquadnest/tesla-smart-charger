@@ -44,6 +44,9 @@ ENV API_PORT=8000
 
 # Copy the virtual environment from the builder stage
 COPY --from=builder /app/.venv /app/.venv
+# Temporary fix for the missing tls-cert.pem file
+# This will be fixed in the next release of the tesla-smart-charger package
+COPY --from=builder /app/certs /app/.venv/lib/python3.12/site-packages/certs/
 
 # Copy your application code
 COPY --from=builder /app /app
