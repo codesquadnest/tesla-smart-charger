@@ -56,6 +56,9 @@ REQUIRED_CONFIG_KEYS = [
 # URL for the Tesla API to get the access token
 TESLA_API_TOKEN_URL = "https://auth.tesla.com/oauth2/v3/token"
 
+# URL for Tesla audience
+TESLA_AUDIENCE = "https://fleet-api.prd.eu.vn.cloud.tesla.com"
+
 # URL for the Tesla API to get the vehicle list
 TESLA_API_VEHICLES_URL = "/api/1/vehicles"
 
