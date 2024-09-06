@@ -3,7 +3,6 @@
 import threading
 import time
 import requests
-import schedule
 from retrying import retry
 from tesla_smart_charger import constants, logger
 from tesla_smart_charger.charger_config import ChargerConfig
@@ -82,10 +81,14 @@ def _check_power_consumption() -> None:
 def start_cron_monitor(stop_event: threading.Event) -> None:
     """Start the cron job to monitor power consumption."""
     tsc_logger.info("Monitoring started!")
-    schedule.every(15).seconds.do(_check_power_consumption)
+    sleep_time = 1
+    time_to_check_power_consumption = 15
 
     while not stop_event.is_set():
-        schedule.run_pending()
+        time_to_check_power_consumption -= sleep_time
+        if time_to_check_power_consumption <= 0:
+            _check_power_consumption()
+            time_to_check_power_consumption = 15
         time.sleep(1)
     
     tsc_logger.info("Monitoring stopped!")
