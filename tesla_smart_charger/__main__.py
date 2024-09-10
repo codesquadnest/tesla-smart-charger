@@ -135,7 +135,8 @@ def overload() -> JSONResponse:
     if _get_thread_by_name("tsc_handle_overload_thread"):
         response = {"msg": "overload handling session already started"}
         return JSONResponse(content=response, status_code=202)
-
+    # Load the configuration to get new token if needed
+    tesla_config.load_config()
     try:
         vehicle_data = tesla_api.get_vehicle_data()
     except HTTPException as e:
