@@ -11,7 +11,7 @@ VERBOSE = False
 REQUEST_DELAY_MS = 3000
 
 # Maximum number of queries to the Tesla API during overload handling session
-MAX_QUERIES = 20
+MAX_QUERIES = 5
 
 # Path to the configuration file
 CONFIG_FILE = "config.json"
@@ -28,7 +28,7 @@ DEFAULT_CONFIG = {
     "upStepPercentage": "0.25",
     "energyMonitorIp": "",
     "energyMonitorType": "",
-    "sleepTimeSecs": "300",
+    "sleepTimeSecs": "30",
     "teslaVehicleId": "",
     "teslaAccessToken": "",
     "teslaRefreshToken": "",

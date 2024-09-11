@@ -4,7 +4,7 @@
     "chargerMinAmps": "5.0",
     "downStepPercentage": "0.5",
     "upStepPercentage": "0.5",
-    "sleepTimeSecs": "10",
+    "sleepTimeSecs": "30",
     "energyMonitorIp": "ipAddress",
     "energyMonitorType": "shelly_em",
     "hostIp": "ipAddress",

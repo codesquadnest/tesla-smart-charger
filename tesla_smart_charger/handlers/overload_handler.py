@@ -15,6 +15,13 @@ tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
 tesla_api = TeslaAPI(tesla_config)
 
+# Constants
+SLEEP_TIME = int(tesla_config.config["sleepTimeSecs"])
+HOME_MAX_AMPS = float(tesla_config.config["homeMaxAmps"])
+CHARGER_MAX_AMPS = float(tesla_config.config["chargerMaxAmps"])
+CHARGER_MIN_AMPS = float(tesla_config.config["chargerMinAmps"])
+MAX_TESLA_API_QUERIES = int(constants.MAX_QUERIES)
+
 
 def _reload_config() -> None:
     """Reload the config."""
@@ -54,6 +61,18 @@ def _calculate_new_charge_limit(
     return int(new_charge_limit)
 
 
+def _get_current_consumption_in_amps(em_controller) -> float:
+    """Get the current consumption of the house in amps."""
+    try:
+        current_em_consumption = em_controller.get_consumption() / 230
+        tsc_logger.debug(f"Current consumption in amps: {current_em_consumption:.2f}")
+    except ValueError as e:
+        tsc_logger.error(f"Error getting consumption: {e}")
+        return None
+
+    return current_em_consumption
+
+
 def handle_overload() -> None:
     """Handle the overload of the charger."""
     tsc_logger.info("Handling overload! Supervised session started.")
@@ -65,57 +84,55 @@ def handle_overload() -> None:
             tesla_config.config["energyMonitorType"],
             tesla_config.config["energyMonitorIp"],
         )
-    except ValueError as e:
+    except ValueError:
         tsc_logger.error("Invalid energy monitor type")
         tsc_logger.info("Supervised session ended.")
-        raise HTTPException(
-            status_code=500,
-            detail="Invalid energy monitor type",
-        ) from e
+        return
 
-    # Sleep for the configured time
-    time.sleep(int(tesla_config.config["sleepTimeSecs"]))
+    # Sleep for a longer time so the power consumption can stabilize after the overload
+    # while still checks if the house is consuming more power than the limit
+    for _ in range(10):
+        time.sleep(SLEEP_TIME)
+        _reload_config()
+        current_em_consumption_amps = _get_current_consumption_in_amps(em_controller)
+        if current_em_consumption_amps > HOME_MAX_AMPS:
+            tsc_logger.info("Overload still present... starting stabilization")
+            break
 
-    # Get the current vehicle data
+    # Stabilize the power consumption after the overload
     try:
         _reload_config()
         vehicle_data = tesla_api.get_vehicle_data()
     except HTTPException as e:
-        tsc_logger.error("Supervised session interrupted!")
-        raise HTTPException(
-            status_code=e.status_code,
-            detail=f"Request failed: {e}",
-        ) from e
+        tsc_logger.error(f"Supervised session interrupted! {e}")
+        return
 
     charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
 
     while (
         vehicle_data["state"] == "online"
         and vehicle_data["charge_state"]["charging_state"] == "Charging"
-        and tesla_api_calls < int(constants.MAX_QUERIES)
+        and tesla_api_calls < MAX_TESLA_API_QUERIES
+        and int(charger_actual_current) < int(tesla_config.config["chargerMaxAmps"])
     ):
         _reload_config()
 
         # Get the current charge limit in amps
         charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
 
-        # Get the current consumption of the house in kW and convert to amps
-        current_em_consumption = em_controller.get_consumption() / 1000
-        current_em_consumption_amps = current_em_consumption * 1000 / 230
-
-        tsc_logger.info(
-            f"Current charge limit: {charger_actual_current}A, "
-            f"current house consumption: {current_em_consumption:.2f}kW "
-            f"({current_em_consumption_amps:.2f}A)"
-        )
+        # Get the current consumption of the house in amps
+        current_em_consumption_amps = _get_current_consumption_in_amps(em_controller)
+        if current_em_consumption_amps is None:
+            tsc_logger.info("Supervised session ended.")
+            return
 
         # Calculate the new charge limit
         new_charge_limit = _calculate_new_charge_limit(
             float(charger_actual_current),
             float(current_em_consumption_amps),
-            float(tesla_config.config["chargerMaxAmps"]),
-            float(tesla_config.config["chargerMinAmps"]),
-            float(tesla_config.config["homeMaxAmps"]),
+            CHARGER_MAX_AMPS,
+            CHARGER_MIN_AMPS,
+            HOME_MAX_AMPS,
         )
 
         if int(new_charge_limit) != int(charger_actual_current):
@@ -124,11 +141,8 @@ def handle_overload() -> None:
             try:
                 tesla_api.set_charge_amp_limit(new_charge_limit)
             except HTTPException as e:
-                tsc_logger.error("Supervised session interrupted!")
-                raise HTTPException(
-                    status_code=e.status_code,
-                    detail=f"Request failed: {e}",
-                ) from e
+                tsc_logger.error(f"Supervised session interrupted! {e}")
+                return
             tesla_api_calls = 0
         else:
             tsc_logger.info("No change in charge limit")
@@ -138,16 +152,13 @@ def handle_overload() -> None:
                 tesla_api_calls += 1
 
         # Sleep for the configured time
-        time.sleep(int(tesla_config.config["sleepTimeSecs"]))
+        time.sleep(SLEEP_TIME)
 
         # Get the current vehicle data
         try:
             vehicle_data = tesla_api.get_vehicle_data()
         except HTTPException as e:
-            tsc_logger.error("Supervised session interrupted!")
-            raise HTTPException(
-                status_code=e.status_code,
-                detail=f"Request failed: {e}",
-            ) from e
+            tsc_logger.error(f"Supervised session interrupted! {e}")
+            return
 
     tsc_logger.info("Overload handled! Supervised session ended.")

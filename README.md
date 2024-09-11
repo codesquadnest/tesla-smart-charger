@@ -203,7 +203,7 @@ charging command to the vehicle.
       "chargerMinAmps": 6.0,
       "downStepPercentage": 0.5,
       "upStepPercentage": 0.25,
-      "sleepTimeSecs": 20,
+      "sleepTimeSecs": 30,
       "energyMonitorIp": "ip-or-hostname",
       "energyMonitorType": "shelly-em",
       "hostIp": "ip-address",
