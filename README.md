@@ -215,11 +215,10 @@ charging command to the vehicle.
       "teslaClientId": "12345678901234567"
    }
 
-   **Notes:**
-      - Choose values wisely
-      - When assigning a different port, make sure to update the `Dockerfile`
-         and set the `apiPort` port in `config.json` to the same value.
    ```
+   **Notes:**\
+      - Choose values wisely\
+      - When assigning a different port, make sure to update the `Dockerfile` and set the `apiPort` port in `config.json` to the same value.
 
 
 3. **Energy monitor configuration:**
