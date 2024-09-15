@@ -27,7 +27,6 @@ def _reload_config() -> None:
     """Reload the config."""
     tesla_config.load_config()
     tesla_api.charger_config = tesla_config
-    tsc_logger.info("Configuration reloaded")
 
 
 def _calculate_new_charge_limit(

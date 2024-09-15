@@ -27,7 +27,6 @@ em_controller = _em_controller.create_energy_monitor_controller(
 def _reload_config() -> None:
     """Reload the configuration."""
     tesla_config.load_config()
-    # tsc_logger.info("Configuration reloaded")
 
 
 def _toggle_overload(overload: bool) -> bool:
