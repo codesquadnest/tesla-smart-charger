@@ -37,12 +37,19 @@ These instructions are based on the official [Tesla API documentation](https://d
 - Go to the [Tesla Vehicle Command](https://github.com/teslamotors/vehicle-command) repository.
 - Use the tesla-keygen tool to generate the private and public keys:
 - The public key should be hosted on the webserver.
+
+**Option 1: Build and use tesla-keygen tool (use this if you have Go installed)**
   ```bash
   git clone https://github.com/teslamotors/vehicle-command.git
   cd vehicle-command/cmd/tesla-keygen
   go get ./...
   go build ./...
   ./tesla-keygen -key-file private-key.pem -keyring-type file create > public-key.pem
+  ```
+**Option 2: Use the Docker image (use this if you don't have Go installed)**
+  ```bash
+  docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
+  docker run --rm -v $PWD/certs:/app/certs --name tesla-keygen tesla-keygen:latest
   ```
 
 > https://developer-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem

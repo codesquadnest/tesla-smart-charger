@@ -1,8 +1,8 @@
 # Define the Git hash as a build argument
-ARG GIT_HASH=1211794cd03547ca0bbeb37d38c42a5460764584
+ARG GIT_HASH=e8634aa8ac74282ab195edc462a86b1f87f451de
 
 # Build stage
-FROM golang:1.20 AS builder
+FROM golang:1.23 AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN git clone https://github.com/teslamotors/vehicle-command.git && \
     CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o /app/tesla-keygen
 
 # Run stage
-FROM gcr.io/distroless/static-debian12 AS runner
+FROM debian:12-slim AS runner
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -25,7 +25,5 @@ COPY certs /app/certs
 # Copy the built binary and certificates (if present) from the builder stage
 COPY --from=builder /app/tesla-keygen /app/tesla-keygen
 
-# Run the application
 # Run the command to generate a new key pair
-# ./tesla-keygen -key-file private-key.pem -keyring-type file create > public-key.pem
-# CMD ["/app/tesla-keygen", "-key-file", "/app/certs/private-key.pem", "-keyring-type", "file", "create", ">", "/app/certs/public-key.pem"]
+CMD ["sh", "-c", "/app/tesla-keygen -key-file /app/certs/private-key.pem -keyring-type file create > /app/certs/public-key.pem"]
