@@ -11,7 +11,7 @@ This guide will help you get started with the Tesla Smart Charger.
 - Tesla application.
 - Tesla vehicle.
 
-### Tesla Fleet API access:
+### Tesla Fleet API access
 
 Although the official documentation is available on the [Tesla API documentation](https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api),
 this guide will the steps to setup the required authentication and configuration to
@@ -175,7 +175,7 @@ curl --cacert tls-cert.pem \
 
 > The Tesla application is now setup and ready to be used with the tesla-smart-charger.
 
-### Configuration:
+### Configuration
 
 From the previous steps, you should have the following information:
 
