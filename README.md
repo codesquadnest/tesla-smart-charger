@@ -1,3 +1,9 @@
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tox](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/tox.yml/badge.svg)](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/tox.yml)
+[![Deploy Documentation](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/docs.yml/badge.svg)](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/docs.yml)
+
 # Tesla Smart Charger
 
 Dynamic charging control for your Tesla using the default charger and the Tesla API.

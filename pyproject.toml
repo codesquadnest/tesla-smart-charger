@@ -105,7 +105,7 @@ builtins-ignorelist = ["id"]
 [tool.tox]
 legacy_tox_ini = """
     [tox]
-    envlist = py310, lint
+    envlist = py310, lint, docs
     skipsdist = True
     skip_missing_interpreters = True
 
@@ -121,5 +121,12 @@ legacy_tox_ini = """
         ruff
     commands =
         ruff check tesla_smart_charger tests
+    
+    [testenv:docs]
+    deps =
+        mkdocs
+        mkdocs-material
+    commands =
+        mkdocs build
 
 """
