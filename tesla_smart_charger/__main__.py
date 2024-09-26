@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from tesla_smart_charger import constants, utils, logger
 from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.cron.em_cron import start_cron_monitor
 from tesla_smart_charger.cron.token_cron import start_cron_token
 from tesla_smart_charger.handlers.overload_handler import handle_overload
@@ -26,6 +27,7 @@ from tesla_smart_charger.tesla_api import TeslaAPI
 
 class Config(BaseModel):
     """Config class for Tesla Smart Charger."""
+
     homeMaxAmps: float
     chargerMaxAmps: float
     chargerMinAmps: float
@@ -64,6 +66,8 @@ tesla_api = TeslaAPI(tesla_config)
 # Create an event to signal the cron job to stop
 stop_event = threading.Event()
 
+DB_CONNECTION = None
+
 
 def _get_thread_by_name(thread_name: str) -> threading.Thread:
     """Retrieve a thread by its name."""
@@ -72,7 +76,10 @@ def _get_thread_by_name(thread_name: str) -> threading.Thread:
             return thread
     return None
 
-def _start_cron_job(target_job: callable, stop_event: threading.Event, name: str) -> None:
+
+def _start_cron_job(
+    target_job: callable, stop_event: threading.Event, name: str
+) -> None:
     """Start a new cron thread with the provided name."""
     cron_thread = threading.Thread(
         target=target_job,
@@ -82,11 +89,28 @@ def _start_cron_job(target_job: callable, stop_event: threading.Event, name: str
     cron_thread.start()
 
 
+def __init_db(type: str) -> None:
+    """Initialize the database."""
+    global DB_CONNECTION
+    constants.DB_TYPE = type
+    try:
+        controller_db = db_controller.create_database_controller(
+            type, constants.DB_NAME, constants.DB_FILE_PATH
+        )
+        controller_db.initialize_db()
+        DB_CONNECTION = controller_db
+        tsm_logger.info(f"Database initialized with type: {type}")
+    except Exception as e:
+        tsm_logger.error(f"Failed to initialize database: {e}")
+        sys.exit(1)
+
+
 # Register the startup and shutdown events
 async def startup_event() -> None:
     """Startup event handler."""
     tsm_logger.info("FastAPI application starting up")
     _start_cron_job(start_cron_token, stop_event, "tsc_token_cron_thread")
+
 
 async def shutdown_event() -> None:
     """Shutdown event handler."""
@@ -102,6 +126,7 @@ async def shutdown_event() -> None:
             tsm_logger.info(f"{thread.name} stopped")
 
     await asyncio.sleep(2)
+
 
 def exit_handler() -> None:
     """Exit handler."""
@@ -200,16 +225,33 @@ def set_config(config: Config) -> JSONResponse:
         tesla_config.set_config(config.model_dump_json())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to set config: {e!s}")
-    
-    return JSONResponse(content={"msg": "Configuration updated successfully"}, status_code=200)
+    response = tesla_config.get_config()
+    return JSONResponse(content=response, status_code=200)
+
+
+@app.get("/history/{num_records}")
+def get_history(num_records: int) -> JSONResponse:
+    """Get the history of the charger."""
+    if DB_CONNECTION is None:
+        raise HTTPException(
+            status_code=500, detail="Database connection not initialized"
+        )
+    data = DB_CONNECTION.get_data(num_records)
+    response = {"data": data}
+    return JSONResponse(content=response, status_code=200)
 
 
 def main() -> None:
-    """Entry point for the Tesla smart car charger."""
+    """Entry point for the Tesla smart charger."""
     # Parse the command line arguments
     parser = argparse.ArgumentParser(
-        description="Tesla smart car charger",
+        description="Tesla smart charger",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--database",
+        default="sqlite",
+        help="The type of database to use",
     )
     parser.add_argument(
         "-p",
@@ -254,6 +296,9 @@ def main() -> None:
             sys.exit(1)
         utils.show_vehicles(vehicles)
         sys.exit(0)
+
+    # Initialize the database
+    __init_db(args.database)
 
     if args.monitor:
         # Monitor the energy consumption of the house
