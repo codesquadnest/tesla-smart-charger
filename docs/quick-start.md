@@ -11,7 +11,7 @@ This guide will help you get started with the Tesla Smart Charger.
 - Tesla application.
 - Tesla vehicle.
 
-### Tesla Fleet API access:
+### Tesla Fleet API access
 
 Although the official documentation is available on the [Tesla API documentation](https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api),
 this guide will the steps to setup the required authentication and configuration to
@@ -47,6 +47,19 @@ go build ./...
 ```bash
 docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
 docker run --rm -v $PWD/certs:/app/certs --name tesla-keygen tesla-keygen:latest
+```
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Docker
+    participant KeyGen
+
+    User->>Docker: Build Docker Image
+    Docker->>KeyGen: Execute tesla-keygen
+    KeyGen-->>Docker: Generate Public Key
+    Docker-->>User: Output Public Key
+    User->>User: Change Ownership of Generated Files
 ```
 
 > https://developer-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem
@@ -163,7 +176,7 @@ curl --request POST \
 Test the Tesla application with the tesla-http-proxy:
 
 ```bash
-export TESLA_AUTH_TOKEN=$OAuth_TOKEN
+export TESLA_AUTH_TOKEN=$access_token
 export VIN=$VIN
 curl --cacert tls-cert.pem \
     --header "Authorization: Bearer $TESLA_AUTH_TOKEN" \
@@ -175,7 +188,7 @@ curl --cacert tls-cert.pem \
 
 > The Tesla application is now setup and ready to be used with the tesla-smart-charger.
 
-### Configuration:
+### Configuration
 
 From the previous steps, you should have the following information:
 
@@ -240,3 +253,11 @@ docker compose up --build -d
 To test your configuration you can call (GET) `http://<tesla-smart-charger-ip>:<port>/config`
 
 The default behavior, with no extra configuration, is that the charging amps will be reduced by the `downStepPercentage` configuration. For example, if `downStepPercentage` is set to 0.5, the charging amps will be configured to half of the current amps. If it's set to 0.25, it will be configured to 25% of the current amps.
+
+### Shutdown
+
+To stop the Tesla Smart Charger:
+
+```bash
+docker compose down
+```
