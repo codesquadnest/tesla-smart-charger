@@ -19,51 +19,47 @@ use the tesla-smart-charger.
 
 **Setup tesla application**
 
-These instructions are based on the official [Tesla API documentation](https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api).
+These instructions are based on the official [Tesla API documentation](https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api).  
 
-1. Go to [Tesla Developer](https://developer.tesla.com) website.
+ - Go to [Tesla Developer](https://developer.tesla.com) website.  
+ - Login with your Tesla account.  
+ - Create a new application:  
+Fill the required fields.
+Add your hostname where the public key and callback URL will be hosted.  
+Add the callback URL. The callback URL should be in the format `https://<hostname>/callback` (e.g. `https://example.com/done.html`).  
+Copy the client ID and client secret. You will need these to authenticate the tesla-smart-charger.  
+ - Generate the private and public keys:  
+Go to the [Tesla Vehicle Command](https://github.com/teslamotors/vehicle-command) repository.  
+Use the tesla-keygen tool to generate the private and public keys:  
+The public key should be hosted on the webserver.  
 
-2. Login with your Tesla account.
+**Option 1: Build and use tesla-keygen tool (use this if you have Go installed)**  
 
-3. Create a new application:
-
-- Fill the required fields.
-- Add your hostname where the public key and callback URL will be hosted.
-- Add the callback URL. The callback URL should be in the format `https://<hostname>/callback` (e.g. `https://example.com/done.html`).
-- Copy the client ID and client secret. You will need these to authenticate the tesla-smart-charger.
-
-4. Generate the private and public keys:
-
-- Go to the [Tesla Vehicle Command](https://github.com/teslamotors/vehicle-command) repository.
-- Use the tesla-keygen tool to generate the private and public keys:
-- The public key should be hosted on the webserver.
-
-**Option 1: Build and use tesla-keygen tool (use this if you have Go installed)**
-  ```bash
-  git clone https://github.com/teslamotors/vehicle-command.git
-  cd vehicle-command/cmd/tesla-keygen
-  go get ./...
-  go build ./...
-  ./tesla-keygen -key-file private-key.pem -keyring-type file create > public-key.pem
-  ```
+```bash
+git clone https://github.com/teslamotors/vehicle-command.git
+cd vehicle-command/cmd/tesla-keygen
+go get ./...
+go build ./...
+./tesla-keygen -key-file private-key.pem -keyring-type file create > public-key.pem
+```
 **Option 2: Use the Docker image (use this if you don't have Go installed)**
-  ```bash
-  docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
-  docker run --rm -v $PWD/certs:/app/certs --name tesla-keygen tesla-keygen:latest
-  ```
+
+```bash
+docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
+docker run --rm -v $PWD/certs:/app/certs --name tesla-keygen tesla-keygen:latest
+```
 
 > https://developer-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem
 
-5.  Register the public key with the Tesla application:
+ - Register the public key with the Tesla application
+In a web browser, go to the following URL:  
 
-- In a web browser, go to the following URL:
+> https://auth.tesla.com/oauth2/v3/authorize?&client_id=$CLIENT_ID&locale=en-US&prompt=login&redirect_uri=$CALLBACK_URL&response_type=code&scope=openid%20vehicle_device_data%20offline_access%20vehicle_cmds%20vehicle_charging_cmds&state=db4af3f87
 
-  > https://auth.tesla.com/oauth2/v3/authorize?&client_id=$CLIENT_ID&locale=en-US&prompt=login&redirect_uri=$CALLBACK_URL&response_type=code&scope=openid%20vehicle_device_data%20offline_access%20vehicle_cmds%20vehicle_charging_cmds&state=db4af3f87
+**Note:** Replace the `$CLIENT_ID` and `$CALLBACK_URL` with the values from the Tesla application.  
 
-        Replace the `$CLIENT_ID` and `$CALLBACK_URL` with the values from the Tesla application.
-
-- Login with your Tesla account.
-- Copy the code from the URL and use it to register the public key:
+Login with your Tesla account.  
+Copy the code from the URL and use it to register the public key:
 
 ```bash
 CLIENT_ID=$CLIENT_ID
@@ -81,7 +77,7 @@ curl --request POST \
 'https://auth.tesla.com/oauth2/v3/token'
 ```
 
-- Copy the access token from the response and use it to register the public key:
+Copy the access token from the response and use it to register the public key:
 
 ```bash
 export TESLA_AUTH_TOKEN=$TOKEN
@@ -94,11 +90,11 @@ curl -H "Authorization: Bearer $TESLA_AUTH_TOKEN" \
     -i https://fleet-api.prd.eu.vn.cloud.tesla.com/api/1/partner_accounts
 ```
 
-- The public key should be registered with the Tesla application.
+The public key should be registered with the Tesla application.
 
-6.  Generate a self-signed certificate:
+ - Generate a self-signed certificate  
 
-- Generate a self-signed certificate for tesla-http-proxy:
+Generate a self-signed certificate for tesla-http-proxy:
 
 ```bash
 export HTTPS_PROXY=127.0.0.1 # The IP address of the host machine.
@@ -112,10 +108,10 @@ openssl req -x509 -nodes -newkey ec \
     -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
 ```
 
-7.  Start the tesla-http-proxy:
+ - Start the tesla-http-proxy
 
-- The tesla-http-proxy is a reverse proxy that will forward the requests to the Tesla API.
-- Start the tesla-http-proxy:
+The tesla-http-proxy is a reverse proxy that will forward the requests to the Tesla API.  
+Start the tesla-http-proxy:  
 
 ```bash
 cd vehicle-command/cmd/tesla-http-proxy
@@ -124,11 +120,10 @@ go build ./...
 ./tesla-http-proxy -tls-key tls-key.pem -cert tls-cert.pem -port 4443 -key-file private-key.pem -verbose
 ```
 
-- The tesla-http-proxy should be running on port 4443.
+The tesla-http-proxy should be running on port 4443.
 
-8.  Generate an OAuth token:
-
-- The OAuth token creation is also based on the official [Tesla Fleet API documentation](https://developer.tesla.com/docs/fleet-api/authentication/third-party-tokens):
+ - Generate an OAuth token  
+The OAuth token creation is also based on the official [Tesla Fleet API documentation](https://developer.tesla.com/docs/fleet-api/authentication/third-party-tokens):
 
 ```bash
 # Authorization code token request
@@ -149,8 +144,8 @@ curl --request POST \
 # Extract access_token and refresh_token from this response
 ```
 
-- The access token and refresh token should be used to authenticate the tesla-smart-charger.
-- Refresh token expires in 3 months, to get a new refresh token, use the following command:
+The access token and refresh token should be used to authenticate the tesla-smart-charger.  
+Refresh token expires in 3 months, to get a new refresh token, use the following command:  
 
 ```bash
 # Refresh token request
@@ -164,9 +159,8 @@ curl --request POST \
 'https://auth.tesla.com/oauth2/v3/token'
 ```
 
-9.  The Tesla application is now setup and ready to be tested with the tesla-http-proxy:
-
-- Test the Tesla application with the tesla-http-proxy:
+ - The Tesla application is now setup and ready to be tested with the tesla-http-proxy  
+Test the Tesla application with the tesla-http-proxy:
 
 ```bash
 export TESLA_AUTH_TOKEN=$OAuth_TOKEN
