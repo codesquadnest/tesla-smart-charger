@@ -40,13 +40,32 @@ git clone https://github.com/teslamotors/vehicle-command.git
 cd vehicle-command/cmd/tesla-keygen
 go get ./...
 go build ./...
-./tesla-keygen -key-file private-key.pem -keyring-type file create > public-key.pem
+./tesla-keygen -key-file private-key.pem -keyring-type file -output public-key.pem create
 ```
 **Option 2: Use the Docker image (use this if you don't have Go installed)**
 
 ```bash
 docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
 docker run --rm -v $PWD/certs:/app/certs --name tesla-keygen tesla-keygen:latest
+# Ensure the current user has proper access to the generated files
+# Note: Use an appropriate method for your system to change file ownership
+sudo chown $USER:$USER certs/* # On systems with sudo
+# OR
+chown $(id -u):$(id -g) certs/* # On systems without sudo, when run as root
+```
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Docker
+    participant KeyGen
+
+    User->>Docker: Build Docker Image
+    Docker->>KeyGen: Execute tesla-keygen
+    KeyGen-->>Docker: Generate Public Key
+    Docker-->>User: Output Public Key
+    User->>User: Change Ownership of Generated Files
+    Note right of User: Ensures proper file access
 ```
 
 > https://developer-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem
@@ -163,7 +182,7 @@ curl --request POST \
 Test the Tesla application with the tesla-http-proxy:
 
 ```bash
-export TESLA_AUTH_TOKEN=$OAuth_TOKEN
+export TESLA_AUTH_TOKEN=$access_token
 export VIN=$VIN
 curl --cacert tls-cert.pem \
     --header "Authorization: Bearer $TESLA_AUTH_TOKEN" \
@@ -240,3 +259,11 @@ docker compose up --build -d
 To test your configuration you can call (GET) `http://<tesla-smart-charger-ip>:<port>/config`
 
 The default behavior, with no extra configuration, is that the charging amps will be reduced by the `downStepPercentage` configuration. For example, if `downStepPercentage` is set to 0.5, the charging amps will be configured to half of the current amps. If it's set to 0.25, it will be configured to 25% of the current amps.
+
+### Shutdown
+
+To stop the Tesla Smart Charger:
+
+```bash
+docker compose down
+```

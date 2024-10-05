@@ -34,6 +34,8 @@ theme:
     - navigation.top
     - toc.integrate
 
+plugins:
+  - mermaid2
 
 nav: []
 
