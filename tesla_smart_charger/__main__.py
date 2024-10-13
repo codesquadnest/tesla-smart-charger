@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from tesla_smart_charger import constants, utils, logger
 from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.cron.em_cron import start_cron_monitor
 from tesla_smart_charger.cron.token_cron import start_cron_token
 from tesla_smart_charger.handlers.overload_handler import handle_overload
@@ -202,6 +203,23 @@ def set_config(config: Config) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Failed to set config: {e!s}")
     
     return JSONResponse(content={"msg": "Configuration updated successfully"}, status_code=200)
+
+
+@app.post("/history")
+def post_history() -> JSONResponse:
+    """Post the history of the charger."""
+    db_controller = db_controller.create_database_controller("sqlite", "tesla", "tesla.db")
+    db_controller.create_table("tesla")
+    db_controller.insert_data("tesla", {"start": "2021-10-01", "end": "2021-10-02", "duration": 86400})
+    response = {"msg": "Inserted data into the database"}
+    return JSONResponse(content=response, status_code=200)
+
+
+@app.get("/history")
+def get_history() -> JSONResponse:
+    """Get the history of the charger."""
+    response = {"msg": "history session not implemented"}
+    return JSONResponse(content=response, status_code=404)
 
 
 def main() -> None:
