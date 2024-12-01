@@ -150,13 +150,13 @@ def overload() -> JSONResponse:
         charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
 
         # Calculate the new charge limit
-        new_charge_limit = int(charger_actual_current) * float(
+        new_charge_limit = round(float(charger_actual_current)) * float(
             tesla_config.config["downStepPercentage"],
         )
 
         try:
             # Set the new charge limit
-            response = tesla_api.set_charge_amp_limit(int(new_charge_limit))
+            response = tesla_api.set_charge_amp_limit(round(float(new_charge_limit)))
         except HTTPException as e:
             return {"error": f"Set charge limit failed: {e!s}"}
 
