@@ -16,11 +16,11 @@ tesla_config.load_config()
 tesla_api = TeslaAPI(tesla_config)
 
 # Constants
-SLEEP_TIME = int(tesla_config.config["sleepTimeSecs"])
+SLEEP_TIME = round(float(tesla_config.config["sleepTimeSecs"]))
 HOME_MAX_AMPS = float(tesla_config.config["homeMaxAmps"])
 CHARGER_MAX_AMPS = float(tesla_config.config["chargerMaxAmps"])
 CHARGER_MIN_AMPS = float(tesla_config.config["chargerMinAmps"])
-MAX_TESLA_API_QUERIES = int(constants.MAX_QUERIES)
+MAX_TESLA_API_QUERIES = round(float(constants.MAX_QUERIES))
 
 
 def _reload_config() -> None:
@@ -57,7 +57,7 @@ def _calculate_new_charge_limit(
         f"consumption difference: {consumption_difference:.2f}A)"
     )
 
-    return int(new_charge_limit)
+    return round(float(new_charge_limit))
 
 
 def _get_current_consumption_in_amps(em_controller) -> float:
@@ -112,7 +112,8 @@ def handle_overload() -> None:
         vehicle_data["state"] == "online"
         and vehicle_data["charge_state"]["charging_state"] == "Charging"
         and tesla_api_calls < MAX_TESLA_API_QUERIES
-        and int(charger_actual_current) < int(tesla_config.config["chargerMaxAmps"])
+        and round(float(charger_actual_current))
+        < round(float(tesla_config.config["chargerMaxAmps"]))
     ):
         _reload_config()
 
@@ -134,7 +135,7 @@ def handle_overload() -> None:
             HOME_MAX_AMPS,
         )
 
-        if int(new_charge_limit) != int(charger_actual_current):
+        if round(float(new_charge_limit)) != round(float(charger_actual_current)):
             tsc_logger.info(f"Setting new charge limit: {new_charge_limit}A")
             # Set the new charge limit
             try:
@@ -145,8 +146,8 @@ def handle_overload() -> None:
             tesla_api_calls = 0
         else:
             tsc_logger.info("No change in charge limit")
-            if int(charger_actual_current) == int(
-                tesla_config.config["chargerMaxAmps"]
+            if round(float(charger_actual_current)) == round(
+                float(tesla_config.config["chargerMaxAmps"])
             ):
                 tesla_api_calls += 1
 
