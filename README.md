@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tox](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/tox.yml/badge.svg)](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/tox.yml)
 [![Deploy Documentation](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/docs.yml/badge.svg)](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/docs.yml)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/codesquadnest/tesla-smart-charger)
 
 # Tesla Smart Charger
 
