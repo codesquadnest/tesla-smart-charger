@@ -22,7 +22,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies using Poetry
-RUN poetry install --no-dev
+RUN poetry install --no-root
 
 # Copy the application code
 COPY tesla_smart_charger tesla_smart_charger
