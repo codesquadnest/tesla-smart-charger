@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from tesla_smart_charger import constants, utils, logger
 from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.cron.em_cron import start_cron_monitor
 from tesla_smart_charger.cron.token_cron import start_cron_token
 from tesla_smart_charger.handlers.overload_handler import handle_overload
@@ -64,6 +65,8 @@ tesla_api = TeslaAPI(tesla_config)
 # Create an event to signal the cron job to stop
 stop_event = threading.Event()
 
+DB_CONNECTION = None
+
 
 def _get_thread_by_name(thread_name: str) -> threading.Thread:
     """Retrieve a thread by its name."""
@@ -80,6 +83,13 @@ def _start_cron_job(target_job: callable, stop_event: threading.Event, name: str
         name=name,
     )
     cron_thread.start()
+
+def __init_db(type: str) -> None:
+    """Initialize the database."""
+    global DB_CONNECTION
+    controller_db = db_controller.create_database_controller(type, "tesla", "tesla.db")
+    controller_db.initialize_db()
+    DB_CONNECTION = controller_db
 
 
 # Register the startup and shutdown events
@@ -204,12 +214,37 @@ def set_config(config: Config) -> JSONResponse:
     return JSONResponse(content={"msg": "Configuration updated successfully"}, status_code=200)
 
 
+@app.post("/history")
+def post_history() -> JSONResponse:
+    """Post the history of the charger."""
+    controller_db = db_controller.create_database_controller("sqlite", "tesla", "tesla.db")
+    controller_db.initialize_db()
+    controller_db.insert_data({"start": "2021-10-01", "end": "2021-10-02", "duration": 86400})
+    response = {"msg": "Inserted data into the database"}
+    return JSONResponse(content=response, status_code=200)
+
+
+@app.get("/history")
+def get_history() -> JSONResponse:
+    """Get the history of the charger."""
+    controller_db = db_controller.create_database_controller("sqlite", "tesla", "tesla.db")
+    controller_db.initialize_db()
+    data = controller_db.get_data(1)
+    response = {"data": data}
+    return JSONResponse(content=response, status_code=200)
+
+
 def main() -> None:
-    """Entry point for the Tesla smart car charger."""
+    """Entry point for the Tesla smart charger."""
     # Parse the command line arguments
     parser = argparse.ArgumentParser(
-        description="Tesla smart car charger",
+        description="Tesla smart charger",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--database",
+        default="sqlite",
+        help="The type of database to use",
     )
     parser.add_argument(
         "-p",
@@ -254,6 +289,9 @@ def main() -> None:
             sys.exit(1)
         utils.show_vehicles(vehicles)
         sys.exit(0)
+    
+    # Initialize the database
+    __init_db(args.database)
 
     if args.monitor:
         # Monitor the energy consumption of the house
