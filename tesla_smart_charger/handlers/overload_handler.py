@@ -5,14 +5,14 @@ from fastapi import HTTPException
 
 from tesla_smart_charger import constants, logger
 from tesla_smart_charger.charger_config import ChargerConfig
-from tesla_smart_charger.controllers import db_controller as db
+from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.controllers import em_controller as _em_controller
 from tesla_smart_charger.tesla_api import TeslaAPI
 
 # Set up logging
 tsc_logger = logger.get_logger()
 
-db_controller = None
+controller_db = None
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
 tesla_api = TeslaAPI(tesla_config)
@@ -25,13 +25,13 @@ CHARGER_MIN_AMPS = float(tesla_config.config["chargerMinAmps"])
 MAX_TESLA_API_QUERIES = round(float(constants.MAX_QUERIES))
 
 
-def __init_db_controller():
+def _init_db_controller():
     """Initialize the database controller."""
-    global db_controller
-    db_controller = db.create_database_controller(
+    global controller_db
+    controller_db = db_controller.create_database_controller(
         constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
     )
-    db_controller.initialize_db()
+    controller_db.initialize_db()
 
 
 def _reload_config() -> None:
@@ -78,13 +78,14 @@ def _get_current_consumption_in_amps(em_controller) -> float:
         tsc_logger.debug(f"Current consumption in amps: {current_em_consumption:.2f}")
     except ValueError as e:
         tsc_logger.error(f"Error getting consumption: {e}")
-        return None
+        return 0.0
+    return current_em_consumption
 
 
 def _finish_overload_handling(start_time: str) -> None:
     """Finish the overload handling."""
     # Initialize the database controller
-    __init_db_controller()
+    _init_db_controller()
 
     # Save end time of the overload (yyyy-mm-dd HH:MM:SS) as a string
     end_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -102,12 +103,12 @@ def _finish_overload_handling(start_time: str) -> None:
 
     # Insert the overload data into the database
     try:
-        db_controller.insert_data(overload_data)
+        controller_db.insert_data(overload_data)
         tsc_logger.info("Overload data saved to database")
     except Exception as e:
         tsc_logger.error(f"Error saving overload data to database: {e}")
     finally:
-        db_controller.close_connection()
+        controller_db.close_connection()
 
 
 def handle_overload() -> None:

@@ -39,7 +39,7 @@ class SqliteDatabaseController(DatabaseController):
         try:
             self.connection = sqlite3.connect(self.file_path)
             self.cursor = self.connection.cursor()
-            tsc_logger.info(f"Connected to SQLite database: {self.file_path}")
+            tsc_logger.debug(f"Connected to SQLite database: {self.file_path}")
 
             # Create the tables if they do not exist
             self.cursor.execute(
@@ -53,7 +53,7 @@ class SqliteDatabaseController(DatabaseController):
                 """
             )
             self.connection.commit()
-            tsc_logger.info("Created table: overloads")
+            tsc_logger.debug("Created table: overloads")
 
         except sqlite3.Error as e:
             tsc_logger.error(f"Error connecting to SQLite database: {e}")
@@ -63,7 +63,7 @@ class SqliteDatabaseController(DatabaseController):
         """Close the connection to the database."""
         if self.connection:
             self.connection.close()
-            tsc_logger.info("Closed connection to SQLite database")
+            tsc_logger.debug("Closed connection to SQLite database")
 
     def insert_data(self, data: dict) -> None:
         """

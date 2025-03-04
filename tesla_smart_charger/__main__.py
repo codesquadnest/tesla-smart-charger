@@ -66,8 +66,6 @@ tesla_api = TeslaAPI(tesla_config)
 # Create an event to signal the cron job to stop
 stop_event = threading.Event()
 
-DB_CONNECTION = None
-
 
 def _get_thread_by_name(thread_name: str) -> threading.Thread:
     """Retrieve a thread by its name."""
@@ -89,16 +87,15 @@ def _start_cron_job(
     cron_thread.start()
 
 
-def __init_db(type: str) -> None:
+def _init_db(type: str) -> None:
     """Initialize the database."""
-    global DB_CONNECTION
     constants.DB_TYPE = type
     try:
         controller_db = db_controller.create_database_controller(
             type, constants.DB_NAME, constants.DB_FILE_PATH
         )
         controller_db.initialize_db()
-        DB_CONNECTION = controller_db
+        controller_db.close_connection()
         tsm_logger.info(f"Database initialized with type: {type}")
     except Exception as e:
         tsm_logger.error(f"Failed to initialize database: {e}")
@@ -232,13 +229,23 @@ def set_config(config: Config) -> JSONResponse:
 @app.get("/history/{num_records}")
 def get_history(num_records: int) -> JSONResponse:
     """Get the history of the charger."""
-    if DB_CONNECTION is None:
+    controller_db = None
+    try:
+        controller_db = db_controller.create_database_controller(
+            constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
+        )
+        controller_db.initialize_db()
+        data = controller_db.get_data(num_records)
+        response = {"data": data}
+        return JSONResponse(content=response, status_code=200)
+    except Exception as e:
+        tsm_logger.error(f"Failed to initialize database: {e}")
         raise HTTPException(
             status_code=500, detail="Database connection not initialized"
-        )
-    data = DB_CONNECTION.get_data(num_records)
-    response = {"data": data}
-    return JSONResponse(content=response, status_code=200)
+        ) from e
+    finally:
+        if controller_db:
+            controller_db.close_connection()
 
 
 def main() -> None:
@@ -298,7 +305,7 @@ def main() -> None:
         sys.exit(0)
 
     # Initialize the database
-    __init_db(args.database)
+    _init_db(args.database)
 
     if args.monitor:
         # Monitor the energy consumption of the house
