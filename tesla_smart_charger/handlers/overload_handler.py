@@ -164,7 +164,7 @@ def handle_overload() -> None:
 
         # Get the current consumption of the house in amps
         current_em_consumption_amps = _get_current_consumption_in_amps(em_controller)
-        if current_em_consumption_amps is None:
+        if current_em_consumption_amps == 0.0:
             tsc_logger.info("Supervised session ended.")
             return
 
