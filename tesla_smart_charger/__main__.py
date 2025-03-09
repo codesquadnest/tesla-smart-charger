@@ -12,8 +12,9 @@ import threading
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from tesla_smart_charger import constants, utils, logger
@@ -55,6 +56,9 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Mount a directory for website files (e.g., CSS, JavaScript)
+app.mount("/website", StaticFiles(directory="tesla_smart_charger/website"), name="website")
 
 # Create the charger config object
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
@@ -139,10 +143,9 @@ app.add_event_handler("shutdown", shutdown_event)
 
 
 @app.get("/")
-def read_root() -> JSONResponse:
-    """Root endpoint."""
-    response = {"msg": "Tesla Smart Charger API"}
-    return JSONResponse(content=response, status_code=200)
+def serve_index():
+    """Serve the main HTML page."""
+    return FileResponse("tesla_smart_charger/website/index.html")
 
 
 @app.get("/overload")

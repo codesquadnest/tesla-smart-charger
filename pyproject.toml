@@ -1,6 +1,6 @@
 [project]
 name = "tesla-smart-charger"
-version = "1.1.1"
+version = "1.1.2"
 description = "Dynamic charge your tesla using default charger"
 authors = [
     {name = "Pedro Baptista", email = "pedro.miguel.baptista@gmail.com"}
@@ -49,24 +49,6 @@ mkdocs-mermaid2-plugin = ">=1.2.1"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-# Configurations for black
-[tool.black]
-line-length = 88
-target-version = ["py310"]
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
 lint.extend-ignore = "E501"
 
 # Configurations for pytest
@@ -109,7 +91,7 @@ builtins-ignorelist = ["id"]
 [tool.tox]
 legacy_tox_ini = """
     [tox]
-    envlist = py{39,310,311,312}, lint, docs
+    envlist = py{39,310,311,312,313}, lint, docs
     skipsdist = True
     skip_missing_interpreters = True
 
@@ -135,3 +117,6 @@ legacy_tox_ini = """
         mkdocs build
 
 """
+
+[tool.uv.workspace]
+members = ["config_dashboard/config_dashboard"]

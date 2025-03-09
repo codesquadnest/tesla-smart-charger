@@ -1,0 +1,16 @@
+/* Center content and limit width */
+.container {
+    max-width: 800px;
+}
+
+/* Fix table header row */
+.table thead {
+    background-color: #343a40;
+    color: white;
+}
+
+/* Improve button sizes for mobile */
+button {
+    padding: 12px;
+    font-size: 18px;
+}
