@@ -117,6 +117,3 @@ legacy_tox_ini = """
         mkdocs build
 
 """
-
-[tool.uv.workspace]
-members = ["config_dashboard/config_dashboard"]
