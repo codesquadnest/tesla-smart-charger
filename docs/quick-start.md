@@ -17,18 +17,18 @@ Although the official documentation is available on the [Tesla API documentation
 this guide will the steps to setup the required authentication and configuration to
 use the tesla-smart-charger.
 
-**Setup tesla application**
+### Setup tesla application
 
 These instructions are based on the official [Tesla API documentation](https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api).  
 
- - Go to [Tesla Developer](https://developer.tesla.com) website.  
- - Login with your Tesla account.  
- - Create a new application:  
+- Go to [Tesla Developer](https://developer.tesla.com) website.  
+- Login with your Tesla account.  
+- Create a new application:  
 Fill the required fields.
 Add your hostname where the public key and callback URL will be hosted.  
 Add the callback URL. The callback URL should be in the format `https://<hostname>/callback` (e.g. `https://example.com/done.html`).  
 Copy the client ID and client secret. You will need these to authenticate the tesla-smart-charger.  
- - Generate the private and public keys:  
+- Generate the private and public keys:  
 Go to the [Tesla Vehicle Command](https://github.com/teslamotors/vehicle-command) repository.  
 Use the tesla-keygen tool to generate the private and public keys:  
 The public key should be hosted on the webserver.  
@@ -42,7 +42,8 @@ go get ./...
 go build ./...
 ./tesla-keygen -key-file private-key.pem -keyring-type file -output public-key.pem create
 ```
-**Option 2: Use the Docker image (use this if you don't have Go installed)**
+
+#### Option 2: Use the Docker image (use this if you don't have Go installed)
 
 ```bash
 docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
@@ -68,12 +69,12 @@ sequenceDiagram
     Note right of User: Ensures proper file access
 ```
 
-> https://developer-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem
+> <https://developer-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem>
 
- - Register the public key with the Tesla application
+- Register the public key with the Tesla application
 In a web browser, go to the following URL:  
 
-> https://auth.tesla.com/oauth2/v3/authorize?&client_id=$CLIENT_ID&locale=en-US&prompt=login&redirect_uri=$CALLBACK_URL&response_type=code&scope=openid%20vehicle_device_data%20offline_access%20vehicle_cmds%20vehicle_charging_cmds&state=db4af3f87
+> [Tesla OAuth Authorization](https://auth.tesla.com/oauth2/v3/authorize?&client_id=$CLIENT_ID&locale=en-US&prompt=login&redirect_uri=$CALLBACK_URL&response_type=code&scope=openid%20vehicle_device_data%20offline_access%20vehicle_cmds%20vehicle_charging_cmds&state=db4af3f87)
 
 **Note:** Replace the `$CLIENT_ID` and `$CALLBACK_URL` with the values from the Tesla application.  
 
@@ -111,7 +112,7 @@ curl -H "Authorization: Bearer $TESLA_AUTH_TOKEN" \
 
 The public key should be registered with the Tesla application.
 
- - Generate a self-signed certificate  
+- Generate a self-signed certificate  
 
 Generate a self-signed certificate for tesla-http-proxy:
 
@@ -127,7 +128,7 @@ openssl req -x509 -nodes -newkey ec \
     -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
 ```
 
- - Start the tesla-http-proxy
+- Start the tesla-http-proxy
 
 The tesla-http-proxy is a reverse proxy that will forward the requests to the Tesla API.  
 Start the tesla-http-proxy:  
@@ -141,7 +142,7 @@ go build ./...
 
 The tesla-http-proxy should be running on port 4443.
 
- - Generate an OAuth token  
+- Generate an OAuth token  
 The OAuth token creation is also based on the official [Tesla Fleet API documentation](https://developer.tesla.com/docs/fleet-api/authentication/third-party-tokens):
 
 ```bash
@@ -178,7 +179,7 @@ curl --request POST \
 'https://auth.tesla.com/oauth2/v3/token'
 ```
 
- - The Tesla application is now setup and ready to be tested with the tesla-http-proxy  
+- The Tesla application is now setup and ready to be tested with the tesla-http-proxy  
 Test the Tesla application with the tesla-http-proxy:
 
 ```bash
@@ -257,6 +258,9 @@ docker compose up --build -d
 ```
 
 To test your configuration you can call (GET) `http://<tesla-smart-charger-ip>:<port>/config`
+
+Another way to test the configuration is accessing `http://<tesla-smart-charger-ip>:<port>` in a web browser. You should see the configuration values which can be updated and there is also an option to fetch
+the list of overloads detected.
 
 The default behavior, with no extra configuration, is that the charging amps will be reduced by the `downStepPercentage` configuration. For example, if `downStepPercentage` is set to 0.5, the charging amps will be configured to half of the current amps. If it's set to 0.25, it will be configured to 25% of the current amps.
 

@@ -63,14 +63,19 @@ TESLA_AUDIENCE = "https://fleet-api.prd.eu.vn.cloud.tesla.com"
 TESLA_API_VEHICLES_URL = "/api/1/vehicles"
 
 # URL for the Tesla API to get the vehicle data
-TESLA_API_VEHICLE_DATA_URL = f"/api/1/vehicles/{{id}}/vehicle_data" # noqa: F541
+TESLA_API_VEHICLE_DATA_URL = f"/api/1/vehicles/{{id}}/vehicle_data"  # noqa: F541
 
 # URL for the Tesla API to set the charging Amperage limit
-TESLA_API_CHARGE_AMP_LIMIT_URL = (
-    f"/api/1/vehicles/{{id}}/command/set_charging_amps" # noqa: F541
-)
+TESLA_API_CHARGE_AMP_LIMIT_URL = f"/api/1/vehicles/{{id}}/command/set_charging_amps"  # noqa: F541
 
 # Energy Monitor Controller states
 EM_CONTROLLER_STATE_IDLE = "IDLE"
 EM_CONTROLLER_STATE_OVERLOAD = "OVERLOAD"
 EM_CONTROLLER_STATE_UNDERLOAD = "UNDERLOAD"
+
+# Database settings
+DB_NAME = "tesla_smart_charger"
+DB_FILE_PATH = "tesla_smart_charger.db"
+DB_TYPE = "sqlite"
+DB_HOST = "localhost"
+DB_PORT = "5432"

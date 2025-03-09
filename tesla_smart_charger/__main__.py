@@ -12,12 +12,14 @@ import threading
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from tesla_smart_charger import constants, utils, logger
 from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.cron.em_cron import start_cron_monitor
 from tesla_smart_charger.cron.token_cron import start_cron_token
 from tesla_smart_charger.handlers.overload_handler import handle_overload
@@ -26,6 +28,7 @@ from tesla_smart_charger.tesla_api import TeslaAPI
 
 class Config(BaseModel):
     """Config class for Tesla Smart Charger."""
+
     homeMaxAmps: float
     chargerMaxAmps: float
     chargerMinAmps: float
@@ -54,6 +57,9 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Mount a directory for website files (e.g., CSS, JavaScript)
+app.mount("/website", StaticFiles(directory="tesla_smart_charger/website"), name="website")
+
 # Create the charger config object
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
@@ -72,7 +78,10 @@ def _get_thread_by_name(thread_name: str) -> threading.Thread:
             return thread
     return None
 
-def _start_cron_job(target_job: callable, stop_event: threading.Event, name: str) -> None:
+
+def _start_cron_job(
+    target_job: callable, stop_event: threading.Event, name: str
+) -> None:
     """Start a new cron thread with the provided name."""
     cron_thread = threading.Thread(
         target=target_job,
@@ -82,11 +91,27 @@ def _start_cron_job(target_job: callable, stop_event: threading.Event, name: str
     cron_thread.start()
 
 
+def _init_db(type: str) -> None:
+    """Initialize the database."""
+    constants.DB_TYPE = type
+    try:
+        controller_db = db_controller.create_database_controller(
+            type, constants.DB_NAME, constants.DB_FILE_PATH
+        )
+        controller_db.initialize_db()
+        controller_db.close_connection()
+        tsm_logger.info(f"Database initialized with type: {type}")
+    except Exception as e:
+        tsm_logger.error(f"Failed to initialize database: {e}")
+        sys.exit(1)
+
+
 # Register the startup and shutdown events
 async def startup_event() -> None:
     """Startup event handler."""
     tsm_logger.info("FastAPI application starting up")
     _start_cron_job(start_cron_token, stop_event, "tsc_token_cron_thread")
+
 
 async def shutdown_event() -> None:
     """Shutdown event handler."""
@@ -103,6 +128,7 @@ async def shutdown_event() -> None:
 
     await asyncio.sleep(2)
 
+
 def exit_handler() -> None:
     """Exit handler."""
     tsm_logger.info("Performing cleanup tasks before exit")
@@ -117,10 +143,9 @@ app.add_event_handler("shutdown", shutdown_event)
 
 
 @app.get("/")
-def read_root() -> JSONResponse:
-    """Root endpoint."""
-    response = {"msg": "Tesla Smart Charger API"}
-    return JSONResponse(content=response, status_code=200)
+def serve_index():
+    """Serve the main HTML page."""
+    return FileResponse("tesla_smart_charger/website/index.html")
 
 
 @app.get("/overload")
@@ -200,16 +225,43 @@ def set_config(config: Config) -> JSONResponse:
         tesla_config.set_config(config.model_dump_json())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to set config: {e!s}")
-    
-    return JSONResponse(content={"msg": "Configuration updated successfully"}, status_code=200)
+    response = tesla_config.get_config()
+    return JSONResponse(content=response, status_code=200)
+
+
+@app.get("/history/{num_records}")
+def get_history(num_records: int) -> JSONResponse:
+    """Get the history of the charger."""
+    controller_db = None
+    try:
+        controller_db = db_controller.create_database_controller(
+            constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
+        )
+        controller_db.initialize_db()
+        data = controller_db.get_data(num_records)
+        response = {"data": data}
+        return JSONResponse(content=response, status_code=200)
+    except Exception as e:
+        tsm_logger.error(f"Failed to initialize database: {e}")
+        raise HTTPException(
+            status_code=500, detail="Database connection not initialized"
+        ) from e
+    finally:
+        if controller_db:
+            controller_db.close_connection()
 
 
 def main() -> None:
-    """Entry point for the Tesla smart car charger."""
+    """Entry point for the Tesla smart charger."""
     # Parse the command line arguments
     parser = argparse.ArgumentParser(
-        description="Tesla smart car charger",
+        description="Tesla smart charger",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--database",
+        default="sqlite",
+        help="The type of database to use",
     )
     parser.add_argument(
         "-p",
@@ -254,6 +306,9 @@ def main() -> None:
             sys.exit(1)
         utils.show_vehicles(vehicles)
         sys.exit(0)
+
+    # Initialize the database
+    _init_db(args.database)
 
     if args.monitor:
         # Monitor the energy consumption of the house

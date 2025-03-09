@@ -89,5 +89,5 @@ def start_cron_monitor(stop_event: threading.Event) -> None:
             _check_power_consumption()
             time_to_check_power_consumption = 15
         time.sleep(1)
-    
+
     tsc_logger.info("Monitoring stopped!")

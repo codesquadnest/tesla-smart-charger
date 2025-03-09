@@ -1,6 +1,5 @@
 """Configurator class for Tesla Smart Charger."""
 
-
 import json
 
 from pathlib import Path
@@ -11,7 +10,6 @@ from tesla_smart_charger import constants
 
 
 class ChargerConfig:
-
     """
     Configurator class for Tesla Smart Charger.
 
@@ -56,7 +54,6 @@ class ChargerConfig:
         else:
             return self.config
 
-
     def get_config(self: object) -> dict:
         """
         Return the configuration.
@@ -67,7 +64,6 @@ class ChargerConfig:
 
         """
         return self.config
-
 
     def set_config(self: object, config: BaseModel) -> dict:
         """

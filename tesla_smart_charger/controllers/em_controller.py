@@ -13,7 +13,6 @@ from abc import ABC, abstractmethod
 
 
 class EnergyMonitorController(ABC):
-
     """Abstract class that defines the interface for the controller."""
 
     @abstractmethod
