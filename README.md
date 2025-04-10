@@ -21,8 +21,45 @@ We welcome contributions to enhance the functionality and features of Tesla Smar
 
 1. Fork the repository.
 2. Create a new branch for your feature or bug fix.
-3. Implement your changes.
-4. Test your changes thoroughly.
-5. Create a pull request with a clear description of your changes.
+3. Install `uv` if you haven't already:
+
+   ```sh
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+4. Create and activate a virtual environment using `uv`:
+
+   ```sh
+   uv venv .venv
+   source .venv/bin/activate
+   ```
+
+5. Sync dependencies using `uv`:
+
+   ```sh
+   uv sync
+   ```
+
+6. Install additional Python versions if needed:
+
+   ```sh
+   uv py install <python-version>
+   ```
+
+7. Add the following to your PATH to ensure binaries can be found:
+
+   ```sh
+   export PATH="/home/$USER/.local/bin:${PATH}"
+   ```
+
+8. Run tests with `tox`:
+
+   ```sh
+   tox
+   ```
+
+9. Implement your changes.
+10. Test your changes thoroughly.
+11. Create a pull request with a clear description of your changes.
 
 **Feel free to contribute and help make Tesla Smart Charger even better!**
