@@ -1,8 +1,8 @@
 # Define the Git hash as a build argument
-ARG GIT_HASH=82b4899b2c904b0268d78d86eb557b7220b169f8
+ARG GIT_HASH=df3be9153985f1516de066244cf7917b63089308
 
 # Build stage
-FROM golang:1.23 AS builder
+FROM golang:1.24 AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
