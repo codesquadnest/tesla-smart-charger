@@ -247,7 +247,9 @@ The configuration file is located at `config.json` and should look like this:
 }
 ```
 
-**Note:** When assigning a different port, make sure to update the `Dockerfile` and set the `apiPort` port in `config.json` to the same value.
+**Note 1:** When assigning a different port, make sure to update the `Dockerfile` and set the `apiPort` port in `config.json` to the same value.
+
+**Note 2:** If you choose to copy the certificates to a different location, make sure to update the `Dockerfile.tesla-smart-charger` and set the environment `TESLA_CERTS_DIR` to the same value.
 
 ### Execution
 
