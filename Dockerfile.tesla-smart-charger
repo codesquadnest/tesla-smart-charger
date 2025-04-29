@@ -26,7 +26,8 @@ ENV API_PORT=8000
 ENV TESLA_CERTS_DIR=/app/certs
 
 # Copy application code and certs
-COPY --from=builder /app /app
+COPY --from=builder /app/dist /app/dist
+COPY --from=builder /app/tesla_smart_charger /app/tesla_smart_charger
 COPY --from=builder /app/certs $TESLA_CERTS_DIR
 
 # Set working directory and expose port
