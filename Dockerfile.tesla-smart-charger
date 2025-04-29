@@ -10,10 +10,14 @@ WORKDIR /app
 COPY pyproject.toml pyproject.toml
 COPY tesla_smart_charger tesla_smart_charger
 COPY README.md README.md
+COPY certs certs
 
-RUN mkdir /app/certs
-
+# Install dependencies and build package
 RUN uv build
+
+# Remove unnecessary files
+RUN rm /app/certs/private-key.pem && \
+    rm /app/certs/public-key.pem
 
 # Stage 2: Create the final image
 FROM python:3.13-slim
@@ -24,6 +28,10 @@ ENV API_PORT=8000
 
 # Copy your application code
 COPY --from=builder /app /app
+
+# Temporary fix for the missing tls-cert.pem file
+# This will be fixed in the next release of the tesla-smart-charger package
+COPY --from=builder /app/certs /app/.venv/lib/python3.13/site-packages/certs/
 
 # Set the working directory
 WORKDIR /app
