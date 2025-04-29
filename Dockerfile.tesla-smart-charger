@@ -3,7 +3,6 @@
 # Stage 1: Build the application
 FROM ghcr.io/astral-sh/uv:debian AS builder
 
-# Copy the project files
 WORKDIR /app
 
 # Copy project files
@@ -15,32 +14,27 @@ COPY certs certs
 # Install dependencies and build package
 RUN uv build
 
-# Remove unnecessary files
-RUN rm /app/certs/private-key.pem && \
-    rm /app/certs/public-key.pem
+# Remove unnecessary files (optional cleanup)
+RUN rm -f /app/certs/private-key.pem /app/certs/public-key.pem
 
-# Stage 2: Create the final image
+# Stage 2: Final runtime image
 FROM python:3.13-slim
 
-# Set environment variables
+# Environment configuration
 ENV TZ=Europe/Lisbon
 ENV API_PORT=8000
+ENV TESLA_CERTS_DIR=/app/certs
 
-# Copy your application code
+# Copy application code and certs
 COPY --from=builder /app /app
+COPY --from=builder /app/certs $TESLA_CERTS_DIR
 
-# Temporary fix for the missing tls-cert.pem file
-# This will be fixed in the next release of the tesla-smart-charger package
-COPY --from=builder /app/certs /app/.venv/lib/python3.13/site-packages/certs/
-
-# Set the working directory
+# Set working directory and expose port
 WORKDIR /app
-
-# Expose the port for the application
 EXPOSE ${API_PORT}
 
-# Install the application from dist
+# Install built app
 RUN pip install --no-cache-dir /app/dist/*.whl
 
-# Define the command to run your application
+# Entrypoint
 CMD ["tesla-smart-charger", "--monitor", "--verbose"]

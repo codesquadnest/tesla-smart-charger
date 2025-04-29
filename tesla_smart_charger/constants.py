@@ -1,8 +1,13 @@
 """Constants for the Tesla Smart Charger integration."""
 
-# Path to the certificate file
-TLS_CERT_PATH = "certs/tls-cert.pem"
-TLS_KEY_PATH = "certs/tls-key.pem"
+import os
+from pathlib import Path
+
+# Optional environment variable override
+CERTS_DIR = Path(os.getenv("TESLA_CERTS_DIR", Path(__file__).resolve().parent.parent / "certs")).resolve()
+
+TLS_CERT_PATH = CERTS_DIR / "tls-cert.pem"
+TLS_KEY_PATH = CERTS_DIR / "tls-key.pem"
 
 # Verbose mode
 VERBOSE = False
