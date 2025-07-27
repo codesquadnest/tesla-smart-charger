@@ -74,7 +74,7 @@ sequenceDiagram
 - Register the public key with the Tesla application
 In a web browser, go to the following URL:  
 
-> [Tesla OAuth Authorization](https://auth.tesla.com/oauth2/v3/authorize?&client_id=$CLIENT_ID&locale=en-US&prompt=login&redirect_uri=$CALLBACK_URL&response_type=code&scope=openid%20vehicle_device_data%20offline_access%20vehicle_cmds%20vehicle_charging_cmds&state=db4af3f87)
+> [Tesla OAuth Authorization](https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/authorize?&client_id=$CLIENT_ID&locale=en-US&prompt=login&redirect_uri=$CALLBACK_URL&response_type=code&scope=openid%20vehicle_device_data%20offline_access%20vehicle_cmds%20vehicle_charging_cmds&state=db4af3f87)
 
 **Note:** Replace the `$CLIENT_ID` and `$CALLBACK_URL` with the values from the Tesla application.  
 
@@ -94,7 +94,7 @@ curl --request POST \
 --data-urlencode "client_secret=$CLIENT_SECRET" \
 --data-urlencode 'scope=openid offline_access user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds' \
 --data-urlencode "audience=$AUDIENCE" \
-'https://auth.tesla.com/oauth2/v3/token'
+'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
 ```
 
 Copy the access token from the response and use it to register the public key:
@@ -160,7 +160,7 @@ curl --request POST \
 --data-urlencode "code=$CODE" \
 --data-urlencode "audience=$AUDIENCE" \
 --data-urlencode "redirect_uri=$CALLBACK" \
-'https://auth.tesla.com/oauth2/v3/token'
+'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
 # Extract access_token and refresh_token from this response
 ```
 
@@ -176,7 +176,7 @@ curl --request POST \
 --data-urlencode 'grant_type=refresh_token' \
 --data-urlencode "client_id=$CLIENT_ID" \
 --data-urlencode "refresh_token=$REFRESH_TOKEN" \
-'https://auth.tesla.com/oauth2/v3/token'
+'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
 ```
 
 - The Tesla application is now setup and ready to be tested with the tesla-http-proxy  
