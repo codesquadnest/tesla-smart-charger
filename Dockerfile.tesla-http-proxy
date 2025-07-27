@@ -1,5 +1,5 @@
 # Define the Git hash as a build argument
-ARG GIT_HASH=df3be9153985f1516de066244cf7917b63089308
+ARG GIT_HASH=b00b1c09e05a35b6019eb98d7c8bc62cc0cb6424
 
 # Build stage
 FROM golang:1.24 AS builder
