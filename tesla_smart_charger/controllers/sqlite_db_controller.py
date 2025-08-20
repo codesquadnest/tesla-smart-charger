@@ -103,7 +103,8 @@ class SqliteDatabaseController(DatabaseController):
                 SELECT * FROM overloads
                 ORDER BY id DESC
                 LIMIT ?
-                """, (num_records,)
+                """,
+                (num_records,),
             )
             data = self.cursor.fetchall()
             tsc_logger.info("Data retrieved from table: overloads")

@@ -58,7 +58,9 @@ app.add_middleware(
 )
 
 # Mount a directory for website files (e.g., CSS, JavaScript)
-app.mount("/website", StaticFiles(directory="tesla_smart_charger/website"), name="website")
+app.mount(
+    "/website", StaticFiles(directory="tesla_smart_charger/website"), name="website"
+)
 
 # Create the charger config object
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
