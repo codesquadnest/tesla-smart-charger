@@ -58,6 +58,10 @@ def _check_power_consumption() -> None:
     """Check the power consumption of the house."""
     _reload_config()
 
+    if not tesla_config.config:
+        tsc_logger.error("Failed to load configuration.")
+        return
+
     if em_controller is None:
         tsc_logger.error("Energy monitor controller not initialized.")
         return

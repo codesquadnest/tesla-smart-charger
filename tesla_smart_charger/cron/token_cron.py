@@ -18,7 +18,7 @@ tsc_logger = logger.get_logger()
 charger_config = ChargerConfig(constants.CONFIG_FILE)
 
 
-def refresh_tesla_token() -> None:
+def refresh_tesla_token() -> bool:
     """Refresh the Tesla token."""
     tsc_logger.info("Refreshing Tesla token...")
     charger_config.load_config()
@@ -29,10 +29,10 @@ def refresh_tesla_token() -> None:
 
     if not client_id:
         tsc_logger.error("Tesla client ID not found in configuration.")
-        return
+        return False
     if not refresh_token:
         tsc_logger.error("Tesla refresh token not found in configuration.")
-        return
+        return False
 
     data = {
         "grant_type": "refresh_token",
@@ -58,7 +58,7 @@ def refresh_tesla_token() -> None:
         tsc_logger.error(f"Error refreshing token: {e!s}")
         if token_request is not None:
             tsc_logger.debug("Token request object: %r", token_request)
-        return
+        return False
 
     try:
         # Parse the response and update the configuration
@@ -70,19 +70,26 @@ def refresh_tesla_token() -> None:
 
         if not access_token or not refresh_token:
             tsc_logger.error("Missing tokens in Tesla response.")
-            return
+            return False
 
         cfg["teslaAccessToken"] = access_token
         cfg["teslaRefreshToken"] = refresh_token
-        charger_config.set_config(json.dumps(cfg))
-
+        set_result = charger_config.set_config(cfg)
+        if isinstance(set_result, dict) and "error" in set_result:
+            tsc_logger.error("Failed to persist refreshed tokens: %s", set_result["error"])
+            return False
         tsc_logger.info("Tesla token refreshed and updated successfully.")
         if expires_in:
             tsc_logger.info(
                 "Token expires at: %s", time.ctime(time.time() + expires_in)
             )
+        return True
     except (KeyError, ValueError, json.JSONDecodeError) as e:
         tsc_logger.error(f"Error parsing token response: {e!s}")
+        return False
+    except Exception as e:
+        tsc_logger.error(f"Unexpected error: {e!s}")
+        return False
 
 
 def start_cron_token(stop_event: threading.Event) -> None:
@@ -96,7 +103,10 @@ def start_cron_token(stop_event: threading.Event) -> None:
 
     while not stop_event.is_set():
         if time_to_refresh <= 0:
-            refresh_tesla_token()
+            if not refresh_tesla_token():
+                refresh_interval = 300
+            else:
+                refresh_interval = 10800
             time_to_refresh = refresh_interval
         # wait instead of sleep → responsive to stop_event
         stop_event.wait(sleep_time)

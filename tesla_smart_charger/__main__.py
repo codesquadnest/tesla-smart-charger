@@ -7,8 +7,10 @@ This script is the main entry point for the Tesla smart car charger.
 import argparse
 import asyncio
 import atexit
+import json
 import sys
 import threading
+from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -73,7 +75,7 @@ tesla_api = TeslaAPI(tesla_config)
 stop_event = threading.Event()
 
 
-def _get_thread_by_name(thread_name: str) -> threading.Thread:
+def _get_thread_by_name(thread_name: str) -> Optional[threading.Thread]:
     """Retrieve a thread by its name."""
     for thread in threading.enumerate():
         if thread.name == thread_name:
@@ -164,6 +166,9 @@ def overload() -> JSONResponse:
         return JSONResponse(content=response, status_code=202)
     # Load the configuration to get new token if needed
     tesla_config.load_config()
+    load_result = tesla_config.load_config()
+    if isinstance(load_result, dict) and "error" in load_result:
+        raise HTTPException(status_code=500, detail=load_result["error"])
     try:
         vehicle_data = tesla_api.get_vehicle_data()
     except HTTPException as e:
@@ -185,7 +190,7 @@ def overload() -> JSONResponse:
             # Set the new charge limit
             response = tesla_api.set_charge_amp_limit(round(float(new_charge_limit)))
         except HTTPException as e:
-            return {"error": f"Set charge limit failed: {e!s}"}
+            return JSONResponse(content={"error": f"Set charge limit failed: {e!s}"}, status_code=500)
 
         # Start the overload handler in a separate thread
         overload_thread = threading.Thread(
@@ -224,7 +229,7 @@ def get_config() -> JSONResponse:
 def set_config(config: Config) -> JSONResponse:
     """Set the configuration."""
     try:
-        tesla_config.set_config(config.model_dump_json())
+        tesla_config.set_config(json.loads(config.model_dump_json()))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to set config: {e!s}")
     response = tesla_config.get_config()

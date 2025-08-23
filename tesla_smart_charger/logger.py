@@ -7,7 +7,7 @@ DEFAULT_LOG_FILE = "tesla-smart-charger.log"
 
 
 def get_logger(
-    name: str = __name__, verbose: bool = False, log_file: str = None
+    name: str = __name__, verbose: bool = False, log_file: str = DEFAULT_LOG_FILE
 ) -> logging.Logger:
     """
     Set up a logger instance and return it.

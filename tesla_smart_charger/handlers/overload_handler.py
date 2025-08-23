@@ -15,14 +15,9 @@ tsc_logger = logger.get_logger()
 controller_db = None
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
-tesla_api = TeslaAPI(tesla_config)
 
-# Constants
-SLEEP_TIME = round(float(tesla_config.config["sleepTimeSecs"]))
-HOME_MAX_AMPS = float(tesla_config.config["homeMaxAmps"])
-CHARGER_MAX_AMPS = float(tesla_config.config["chargerMaxAmps"])
-CHARGER_MIN_AMPS = float(tesla_config.config["chargerMinAmps"])
-MAX_TESLA_API_QUERIES = round(float(constants.MAX_QUERIES))
+
+tesla_api = TeslaAPI(tesla_config)
 
 
 def _init_db_controller():
@@ -31,6 +26,9 @@ def _init_db_controller():
     controller_db = db_controller.create_database_controller(
         constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
     )
+    if not controller_db:
+        tsc_logger.error("Failed to create database controller.")
+        raise SystemExit(1)
     controller_db.initialize_db()
 
 
@@ -86,6 +84,9 @@ def _finish_overload_handling(start_time: str) -> None:
     """Finish the overload handling."""
     # Initialize the database controller
     _init_db_controller()
+    if not controller_db:
+        tsc_logger.error("Failed to create database controller.")
+        raise SystemExit(1)
 
     # Save end time of the overload (yyyy-mm-dd HH:MM:SS) as a string
     end_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -96,10 +97,10 @@ def _finish_overload_handling(start_time: str) -> None:
         start_time_obj = time.strptime(start_time, "%Y-%m-%d %H:%M:%S")
         end_time_obj = time.strptime(end_time, "%Y-%m-%d %H:%M:%S")
         duration = time.mktime(end_time_obj) - time.mktime(start_time_obj)
-        overload_data["duration"] = duration
+        overload_data["duration"] = str(duration)
     except ValueError as e:
         tsc_logger.error(f"Error calculating overload duration: {e}")
-        overload_data["duration"] = 0
+        overload_data["duration"] = "0"
 
     # Insert the overload data into the database
     try:
@@ -120,6 +121,9 @@ def handle_overload() -> None:
     start_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
     # Instantiate the Energy Monitor controller
+    if not tesla_config.config:
+        tsc_logger.error("Failed to load configuration, exiting.")
+        raise SystemExit(1)
     try:
         em_controller = _em_controller.create_energy_monitor_controller(
             tesla_config.config["energyMonitorType"],
@@ -133,10 +137,10 @@ def handle_overload() -> None:
     # Sleep for a longer time so the power consumption can stabilize after the overload
     # while still checks if the house is consuming more power than the limit
     for _ in range(10):
-        time.sleep(SLEEP_TIME)
+        time.sleep(round(float(tesla_config.config["sleepTimeSecs"])))
         _reload_config()
         current_em_consumption_amps = _get_current_consumption_in_amps(em_controller)
-        if current_em_consumption_amps > HOME_MAX_AMPS:
+        if current_em_consumption_amps > float(tesla_config.config["homeMaxAmps"]):
             tsc_logger.info("Overload still present... starting stabilization")
             break
 
@@ -153,7 +157,7 @@ def handle_overload() -> None:
     while (
         vehicle_data["state"] == "online"
         and vehicle_data["charge_state"]["charging_state"] == "Charging"
-        and tesla_api_calls < MAX_TESLA_API_QUERIES
+        and tesla_api_calls < round(float(constants.MAX_QUERIES))
         and round(float(charger_actual_current))
         < round(float(tesla_config.config["chargerMaxAmps"]))
     ):
@@ -172,9 +176,9 @@ def handle_overload() -> None:
         new_charge_limit = _calculate_new_charge_limit(
             float(charger_actual_current),
             float(current_em_consumption_amps),
-            CHARGER_MAX_AMPS,
-            CHARGER_MIN_AMPS,
-            HOME_MAX_AMPS,
+            float(tesla_config.config["chargerMaxAmps"]),
+            float(tesla_config.config["chargerMinAmps"]),
+            float(tesla_config.config["homeMaxAmps"]),
         )
 
         if round(float(new_charge_limit)) != round(float(charger_actual_current)):
@@ -194,7 +198,7 @@ def handle_overload() -> None:
                 tesla_api_calls += 1
 
         # Sleep for the configured time
-        time.sleep(SLEEP_TIME)
+        time.sleep(round(float(tesla_config.config["sleepTimeSecs"])))
 
         # Get the current vehicle data
         try:

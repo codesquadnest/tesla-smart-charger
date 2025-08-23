@@ -3,8 +3,7 @@
 import json
 
 from pathlib import Path
-
-from pydantic import BaseModel
+from typing import Optional
 
 from tesla_smart_charger import constants
 
@@ -15,12 +14,12 @@ class ChargerConfig:
 
     Attributes
     ----------
-        config_file (Path): Path to the configuration file.
+        config_file (str): str to the configuration file.
         config (dict): The configuration.
 
     """
 
-    def __init__(self: object, config_file: Path) -> None:
+    def __init__(self, config_file: str) -> None:
         """
         Initialize the configurator.
 
@@ -30,9 +29,9 @@ class ChargerConfig:
 
         """
         self.config_file = Path(config_file)
-        self.config = None
+        self.config: Optional[dict] = None
 
-    def load_config(self: object) -> dict:
+    def load_config(self) -> dict:
         """
         Load the configuration file.
 
@@ -44,6 +43,8 @@ class ChargerConfig:
         try:
             with Path.open(self.config_file, "r") as file:
                 self.config = json.load(file)
+            if not self.config:
+                return {"error": "Config file is empty."}
             self.validate_config(self.config)
         except FileNotFoundError as error:
             return {"error": f"Config file not found: {error}"}
@@ -54,7 +55,7 @@ class ChargerConfig:
         else:
             return self.config
 
-    def get_config(self: object) -> dict:
+    def get_config(self) -> dict:
         """
         Return the configuration.
 
@@ -63,15 +64,15 @@ class ChargerConfig:
             dict: The configuration.
 
         """
-        return self.config
+        return self.config or {}
 
-    def set_config(self: object, config: BaseModel) -> dict:
+    def set_config(self, config: dict) -> dict:
         """
         Set the configuration.
 
         Args:
         ----
-            config (BaseModel): The configuration.
+            config (dict): The configuration.
 
         Returns:
         -------
@@ -81,10 +82,16 @@ class ChargerConfig:
         try:
             self.validate_config(config)
             with Path.open(self.config_file, "w") as file:
-                file.write(config)
-            self.load_config()
+                json.dump(config, file, indent=4)
+            loaded = self.load_config()
+            if isinstance(loaded, dict) and "error" in loaded:
+                return loaded
+            if self.config is None:
+                return {"error": "Failed to load config after setting it."}
         except ValueError as error:
             return {"error": f"Config is not valid: {error}"}
+        except Exception as error:
+            return {"error": f"Failed to set config: {error}"}
         else:
             return self.config
 
