@@ -55,8 +55,8 @@ class TeslaAPI:
                 headers={
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
-                verify=constants.TLS_CERT_PATH,
-                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                verify=str(constants.TLS_CERT_PATH),
+                cert=(str(constants.TLS_CERT_PATH), str(constants.TLS_KEY_PATH)),
                 timeout=20,
             )
             vehicle_request.raise_for_status()
@@ -95,8 +95,8 @@ class TeslaAPI:
                 headers={
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
-                verify=constants.TLS_CERT_PATH,
-                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                verify=str(constants.TLS_CERT_PATH),
+                cert=(str(constants.TLS_CERT_PATH), str(constants.TLS_KEY_PATH)),
                 timeout=20,
             )
             vehicle_request.raise_for_status()
@@ -143,8 +143,8 @@ class TeslaAPI:
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
                 json={"charging_amps": amp_limit},
-                verify=constants.TLS_CERT_PATH,
-                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                verify=str(constants.TLS_CERT_PATH),
+                cert=(str(constants.TLS_CERT_PATH), str(constants.TLS_KEY_PATH)),
                 timeout=10,
             )
             charge_limit_request.raise_for_status()

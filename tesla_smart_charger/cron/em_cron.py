@@ -18,6 +18,10 @@ OVERLOAD = False
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
 
+if not tesla_config.config:
+    tsc_logger.error("Failed to load configuration, exiting.")
+    raise SystemExit(1)
+
 # Initialize energy monitor controller safely
 em_controller = None
 try:
@@ -57,6 +61,10 @@ def _toggle_overload(overload: bool) -> bool:
 def _check_power_consumption() -> None:
     """Check the power consumption of the house."""
     _reload_config()
+
+    if not tesla_config.config:
+        tsc_logger.error("Failed to load configuration.")
+        return
 
     if em_controller is None:
         tsc_logger.error("Energy monitor controller not initialized.")

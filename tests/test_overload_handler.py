@@ -89,7 +89,7 @@ def test_finish_overload_handling() -> None:
             overload_handler._finish_overload_handling(start_time)
             # Verify the data inserted includes the correct duration in seconds
             overload_handler.controller_db.insert_data.assert_called_once_with(
-                {"start": start_time, "end": end_time, "duration": 90}
+                {"start": start_time, "end": end_time, "duration": "90.0"}
             )
         overload_handler.controller_db.close_connection.assert_called_once()
 

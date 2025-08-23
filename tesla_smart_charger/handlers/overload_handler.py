@@ -15,6 +15,11 @@ tsc_logger = logger.get_logger()
 controller_db = None
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
+
+if not tesla_config.config:
+    tsc_logger.error("Failed to load configuration, exiting.")
+    raise SystemExit(1)
+
 tesla_api = TeslaAPI(tesla_config)
 
 # Constants
@@ -31,6 +36,9 @@ def _init_db_controller():
     controller_db = db_controller.create_database_controller(
         constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
     )
+    if not controller_db:
+        tsc_logger.error("Failed to create database controller.")
+        raise SystemExit(1)
     controller_db.initialize_db()
 
 
@@ -86,6 +94,9 @@ def _finish_overload_handling(start_time: str) -> None:
     """Finish the overload handling."""
     # Initialize the database controller
     _init_db_controller()
+    if not controller_db:
+        tsc_logger.error("Failed to create database controller.")
+        raise SystemExit(1)
 
     # Save end time of the overload (yyyy-mm-dd HH:MM:SS) as a string
     end_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -96,10 +107,10 @@ def _finish_overload_handling(start_time: str) -> None:
         start_time_obj = time.strptime(start_time, "%Y-%m-%d %H:%M:%S")
         end_time_obj = time.strptime(end_time, "%Y-%m-%d %H:%M:%S")
         duration = time.mktime(end_time_obj) - time.mktime(start_time_obj)
-        overload_data["duration"] = duration
+        overload_data["duration"] = str(duration)
     except ValueError as e:
         tsc_logger.error(f"Error calculating overload duration: {e}")
-        overload_data["duration"] = 0
+        overload_data["duration"] = "0"
 
     # Insert the overload data into the database
     try:
@@ -120,6 +131,9 @@ def handle_overload() -> None:
     start_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
     # Instantiate the Energy Monitor controller
+    if not tesla_config.config:
+        tsc_logger.error("Failed to load configuration, exiting.")
+        raise SystemExit(1)
     try:
         em_controller = _em_controller.create_energy_monitor_controller(
             tesla_config.config["energyMonitorType"],
