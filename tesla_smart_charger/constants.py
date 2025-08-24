@@ -4,7 +4,9 @@ import os
 from pathlib import Path
 
 # Optional environment variable override
-CERTS_DIR = Path(os.getenv("TESLA_CERTS_DIR", Path(__file__).resolve().parent.parent / "certs")).resolve()
+CERTS_DIR = Path(
+    os.getenv("TESLA_CERTS_DIR", Path(__file__).resolve().parent.parent / "certs")
+).resolve()
 
 TLS_CERT_PATH = CERTS_DIR / "tls-cert.pem"
 TLS_KEY_PATH = CERTS_DIR / "tls-key.pem"

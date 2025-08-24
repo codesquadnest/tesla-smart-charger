@@ -16,15 +16,15 @@ class EnergyMonitorController(ABC):
     """Abstract class that defines the interface for the controller."""
 
     @abstractmethod
-    def get_state(self: object) -> str:
+    def get_state(self) -> str:
         """Return the current state of the controller."""
 
     @abstractmethod
-    def set_state(self: object, state: str) -> None:
+    def set_state(self, state: str) -> None:
         """Set the current state of the controller."""
 
     @abstractmethod
-    def get_consumption(self: object) -> float:
+    def get_consumption(self) -> float:
         """Return the current consumption of the house."""
 
 

@@ -16,27 +16,27 @@ class DatabaseController(ABC):
     """Abstract class that defines the interface for the controller."""
 
     @abstractmethod
-    def initialize_db(self: object) -> None:
+    def initialize_db(self) -> None:
         """Initialize the database."""
 
     @abstractmethod
-    def close_connection(self: object) -> None:
+    def close_connection(self) -> None:
         """Close the connection to the database."""
 
     @abstractmethod
-    def insert_data(self: object, data: dict) -> None:
+    def insert_data(self, data: dict) -> None:
         """Insert data into the database."""
 
     @abstractmethod
-    def get_data(self: object, num_records: int) -> list:
+    def get_data(self, num_records: int) -> list:
         """Get data from the database."""
 
     @abstractmethod
-    def delete_data(self: object) -> None:
+    def delete_data(self) -> None:
         """Delete data from the database."""
 
     @abstractmethod
-    def update_data(self: object, data: dict) -> None:
+    def update_data(self, data: dict) -> None:
         """Update data in the database."""
 
 

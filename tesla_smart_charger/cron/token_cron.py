@@ -3,6 +3,7 @@
 import json
 import threading
 import time
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -17,19 +18,21 @@ tsc_logger = logger.get_logger()
 charger_config = ChargerConfig(constants.CONFIG_FILE)
 
 
-def refresh_tesla_token() -> None:
+def refresh_tesla_token() -> bool:
     """Refresh the Tesla token."""
     tsc_logger.info("Refreshing Tesla token...")
     charger_config.load_config()
 
-    client_id = charger_config.get_config().get("teslaClientId", None)
+    cfg: Dict[str, Any] = charger_config.get_config() or {}
+    client_id: Optional[str] = cfg.get("teslaClientId")
+    refresh_token: Optional[str] = cfg.get("teslaRefreshToken")
+
     if not client_id:
         tsc_logger.error("Tesla client ID not found in configuration.")
-        return
-    refresh_token = charger_config.get_config().get("teslaRefreshToken", None)
+        return False
     if not refresh_token:
         tsc_logger.error("Tesla refresh token not found in configuration.")
-        return
+        return False
 
     data = {
         "grant_type": "refresh_token",
@@ -38,10 +41,9 @@ def refresh_tesla_token() -> None:
         "audience": constants.TESLA_AUDIENCE,
     }
 
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-    }
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
+    token_request = None
     try:
         # Request new token from Tesla API
         token_request = requests.post(
@@ -50,41 +52,64 @@ def refresh_tesla_token() -> None:
             headers=headers,
             timeout=20,
         )
-        token_request.raise_for_status()  # Raises an error for HTTP codes 4xx/5xx
+        token_request.raise_for_status()
         tsc_logger.info("Token request sent successfully.")
     except requests.RequestException as e:
         tsc_logger.error(f"Error refreshing token: {e!s}")
-        # Debug token request
-        tsc_logger.debug(f"Token request: {token_request!r}")
-        return
+        if token_request is not None:
+            tsc_logger.debug("Token request object: %r", token_request)
+        return False
 
     try:
         # Parse the response and update the configuration
-        token_response = token_request.json()
-        charger_config.config["teslaAccessToken"] = token_response["access_token"]
-        charger_config.config["teslaRefreshToken"] = token_response["refresh_token"]
-        expires_in = token_response["expires_in"]
-        charger_config.set_config(json.dumps(charger_config.config))
+        token_response: Dict[str, Any] = token_request.json()
+
+        access_token = token_response.get("access_token")
+        refresh_token = token_response.get("refresh_token")
+        expires_in = int(token_response.get("expires_in", 0))
+
+        if not access_token or not refresh_token:
+            tsc_logger.error("Missing tokens in Tesla response.")
+            return False
+
+        cfg["teslaAccessToken"] = access_token
+        cfg["teslaRefreshToken"] = refresh_token
+        set_result = charger_config.set_config(cfg)
+        if isinstance(set_result, dict) and "error" in set_result:
+            tsc_logger.error("Failed to persist refreshed tokens: %s", set_result["error"])
+            return False
         tsc_logger.info("Tesla token refreshed and updated successfully.")
-        tsc_logger.info(f"Token expires at: {time.ctime(time.time() + expires_in)}")
-    except (KeyError, json.JSONDecodeError) as e:
+        if expires_in:
+            tsc_logger.info(
+                "Token expires at: %s", time.ctime(time.time() + expires_in)
+            )
+        return True
+    except (KeyError, ValueError, json.JSONDecodeError) as e:
         tsc_logger.error(f"Error parsing token response: {e!s}")
+        return False
+    except Exception as e:
+        tsc_logger.error(f"Unexpected error: {e!s}")
+        return False
 
 
 def start_cron_token(stop_event: threading.Event) -> None:
     """Start the cron job to refresh the Tesla token."""
     sleep_time = 2
-    time_to_refresh = 10800
+    refresh_interval = 10800  # 3 hours
+    time_to_refresh = refresh_interval
 
     tsc_logger.info("Starting cron job for token refresh ...")
     refresh_tesla_token()
-    time.sleep(sleep_time)
 
     while not stop_event.is_set():
-        time_to_refresh -= sleep_time
         if time_to_refresh <= 0:
-            refresh_tesla_token()
-            time_to_refresh = 10800
-        time.sleep(sleep_time)
+            if not refresh_tesla_token():
+                refresh_interval = 300
+            else:
+                refresh_interval = 10800
+            time_to_refresh = refresh_interval
+        # wait instead of sleep → responsive to stop_event
+        stop_event.wait(sleep_time)
+        time_to_refresh -= sleep_time
 
     tsc_logger.info("Token refresh cron job stopped.")

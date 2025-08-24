@@ -55,15 +55,16 @@ class TeslaAPI:
                 headers={
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
-                verify=constants.TLS_CERT_PATH,
-                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                verify=str(constants.TLS_CERT_PATH),
+                cert=(str(constants.TLS_CERT_PATH), str(constants.TLS_KEY_PATH)),
                 timeout=20,
             )
             vehicle_request.raise_for_status()
         except requests.RequestException as e:
+            status_code = getattr(getattr(e, "response", None), "status_code", 502)
             msg = f"Request 'get_vehicles' failed: {e}"
             tsc_logger.error(msg)
-            raise HTTPException(status_code=vehicle_request.status_code, detail=msg)
+            raise HTTPException(status_code=status_code, detail=msg)
 
         response = vehicle_request.json()
 
@@ -95,15 +96,16 @@ class TeslaAPI:
                 headers={
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
-                verify=constants.TLS_CERT_PATH,
-                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                verify=str(constants.TLS_CERT_PATH),
+                cert=(str(constants.TLS_CERT_PATH), str(constants.TLS_KEY_PATH)),
                 timeout=20,
             )
             vehicle_request.raise_for_status()
         except requests.RequestException as e:
+            status_code = getattr(getattr(e, "response", None), "status_code", 502)
             msg = f"Request 'get_vehicle_data' failed: {e}"
             tsc_logger.error(msg)
-            raise HTTPException(status_code=vehicle_request.status_code, detail=msg)
+            raise HTTPException(status_code=status_code, detail=msg)
 
         response = vehicle_request.json()
 
@@ -143,17 +145,16 @@ class TeslaAPI:
                     "Authorization": f"Bearer {self.charger_config.get_config().get('teslaAccessToken')}",
                 },
                 json={"charging_amps": amp_limit},
-                verify=constants.TLS_CERT_PATH,
-                cert=(constants.TLS_CERT_PATH, constants.TLS_KEY_PATH),
+                verify=str(constants.TLS_CERT_PATH),
+                cert=(str(constants.TLS_CERT_PATH), str(constants.TLS_KEY_PATH)),
                 timeout=10,
             )
             charge_limit_request.raise_for_status()
         except requests.RequestException as e:
+            status_code = getattr(getattr(e, "response", None), "status_code", 502)
             msg = f"Request 'set_charge_amp_limit' failed: {e}"
             tsc_logger.error(msg)
-            raise HTTPException(
-                status_code=charge_limit_request.status_code, detail=msg
-            )
+            raise HTTPException(status_code=status_code, detail=msg)
 
         response = charge_limit_request.json()
 

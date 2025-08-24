@@ -142,7 +142,7 @@ def test_set_config(config_file: str) -> None:
         teslaClientId="12234567890",
     )
 
-    tesla_config.set_config(test_config.model_dump_json())
+    tesla_config.set_config(test_config.model_dump())
     assert tesla_config.get_config() == {
         "homeMaxAmps": 11.0,
         "chargerMaxAmps": 10.0,
