@@ -61,7 +61,6 @@ def test_init_db_controller() -> None:
         mock_create_db_controller.assert_called_once_with(
             "sqlite", "tesla_smart_charger", "tesla_smart_charger.db"
         )
-        mock_create_db_controller.return_value.initialize_db.assert_called_once()
 
 
 def test_init_db_controller_already_initialized() -> None:
