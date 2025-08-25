@@ -14,7 +14,7 @@ class ChargerConfig:
 
     Attributes
     ----------
-        config_file (str): str to the configuration file.
+        config_file (str): Path to the configuration file.
         config (dict): The configuration.
 
     """
@@ -25,7 +25,7 @@ class ChargerConfig:
 
         Args:
         ----
-            config_file (Path): Path to the configuration file.
+            config_file (str): Path to the configuration file.
 
         """
         self.config_file = Path(config_file)
@@ -64,7 +64,8 @@ class ChargerConfig:
             dict: The configuration.
 
         """
-        return self.config or {}
+        # Guard: always return error if config is not loaded
+        return self.config if self.config is not None else {"error": "Config not loaded."}
 
     def set_config(self, config: dict) -> dict:
         """
@@ -81,8 +82,25 @@ class ChargerConfig:
         """
         try:
             self.validate_config(config)
-            with Path.open(self.config_file, "w") as file:
-                json.dump(config, file, indent=4)
+            # atomic write: write to temp then replace
+            import tempfile
+            import os
+            tmp_name = None
+            with tempfile.NamedTemporaryFile(
+                "w", delete=False, dir=str(self.config_file.parent), encoding="utf-8"
+            ) as tmp:
+                json.dump(config, tmp, indent=4, ensure_ascii=False)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+                tmp_name = tmp.name
+            # Ensure restrictive permissions on the resulting file
+            if tmp_name is not None:
+                os.chmod(tmp_name, 0o600)
+            try:
+                os.replace(tmp_name, self.config_file)
+            finally:
+                if tmp_name and os.path.exists(tmp_name):
+                    os.unlink(tmp_name)
             loaded = self.load_config()
             if isinstance(loaded, dict) and "error" in loaded:
                 return loaded
@@ -106,7 +124,7 @@ class ChargerConfig:
 
         Raises:
         ------
-                SystemExit: If the configuration is not valid.
+                ValueError: If the configuration is not valid.
 
         """
         for key in constants.REQUIRED_CONFIG_KEYS:

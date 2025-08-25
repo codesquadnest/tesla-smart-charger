@@ -28,14 +28,60 @@ def _init_db_controller():
     )
     if not controller_db:
         tsc_logger.error("Failed to create database controller.")
-        raise SystemExit(1)
-    controller_db.initialize_db()
+
+
+def _finish_overload_handling(start_time: str) -> None:
+    """Finish the overload handling."""
+    # Initialize the database controller
+    try:
+        _init_db_controller()
+    except Exception as e:
+        tsc_logger.error("Database controller initialization failed: %s", e)
+        tsc_logger.info("Supervised session ended.")
+        return
+
+    # Save end time of the overload (yyyy-mm-dd HH:MM:SS) as a string
+    end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    overload_data = {"start": start_time, "end": end_time}
+
+    # Calculate the duration of the overload in seconds
+    try:
+        start_time_obj = time.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+        end_time_obj = time.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+        duration = time.mktime(end_time_obj) - time.mktime(start_time_obj)
+        overload_data["duration"] = str(duration)
+    except ValueError as e:
+        tsc_logger.error(f"Error calculating overload duration: {e}")
+        overload_data["duration"] = "0"
+
+    # Insert the overload data into the database
+    if controller_db:
+        try:
+            controller_db.insert_data(overload_data)
+            tsc_logger.info("Overload data saved to database")
+        except Exception as e:
+            tsc_logger.error("Error saving overload data to database: %s", e)
+        finally:
+            try:
+                controller_db.close_connection()
+            except Exception as e:
+                tsc_logger.warning("Error closing database connection: %s", e)
+    else:
+        tsc_logger.warning(
+            "Skipping data insertion and connection close: controller_db is not initialized."
+        )
 
 
 def _reload_config() -> None:
     """Reload the config."""
     tesla_config.load_config()
+    cfg = tesla_config.get_config()
+    if "error" in cfg:
+        msg = f"Config not loaded: {cfg['error']}"
+        tsc_logger.error(msg)
+        raise HTTPException(status_code=500, detail=msg)
     tesla_api.charger_config = tesla_config
+    tesla_api.http_proxy = cfg.get("teslaHttpProxy") or ""
 
 
 def _calculate_new_charge_limit(
@@ -80,38 +126,6 @@ def _get_current_consumption_in_amps(em_controller) -> float:
     return current_em_consumption
 
 
-def _finish_overload_handling(start_time: str) -> None:
-    """Finish the overload handling."""
-    # Initialize the database controller
-    _init_db_controller()
-    if not controller_db:
-        tsc_logger.error("Failed to create database controller.")
-        raise SystemExit(1)
-
-    # Save end time of the overload (yyyy-mm-dd HH:MM:SS) as a string
-    end_time = time.strftime("%Y-%m-%d %H:%M:%S")
-    overload_data = {"start": start_time, "end": end_time}
-
-    # Calculate the duration of the overload in seconds
-    try:
-        start_time_obj = time.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-        end_time_obj = time.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-        duration = time.mktime(end_time_obj) - time.mktime(start_time_obj)
-        overload_data["duration"] = str(duration)
-    except ValueError as e:
-        tsc_logger.error(f"Error calculating overload duration: {e}")
-        overload_data["duration"] = "0"
-
-    # Insert the overload data into the database
-    try:
-        controller_db.insert_data(overload_data)
-        tsc_logger.info("Overload data saved to database")
-    except Exception as e:
-        tsc_logger.error(f"Error saving overload data to database: {e}")
-    finally:
-        controller_db.close_connection()
-
-
 def handle_overload() -> None:
     """Handle the overload of the charger."""
     tsc_logger.info("Handling overload! Supervised session started.")
@@ -121,13 +135,15 @@ def handle_overload() -> None:
     start_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
     # Instantiate the Energy Monitor controller
-    if not tesla_config.config:
-        tsc_logger.error("Failed to load configuration, exiting.")
-        raise SystemExit(1)
+    cfg = tesla_config.get_config()
+    if "error" in cfg:
+        tsc_logger.error(f"Failed to load configuration: {cfg['error']}")
+        tsc_logger.info("Supervised session ended.")
+        return
     try:
         em_controller = _em_controller.create_energy_monitor_controller(
-            tesla_config.config["energyMonitorType"],
-            tesla_config.config["energyMonitorIp"],
+            cfg["energyMonitorType"],
+            cfg["energyMonitorIp"],
         )
     except ValueError:
         tsc_logger.error("Invalid energy monitor type")
@@ -137,10 +153,10 @@ def handle_overload() -> None:
     # Sleep for a longer time so the power consumption can stabilize after the overload
     # while still checks if the house is consuming more power than the limit
     for _ in range(10):
-        time.sleep(round(float(tesla_config.config["sleepTimeSecs"])))
+        time.sleep(round(float(cfg["sleepTimeSecs"])))
         _reload_config()
         current_em_consumption_amps = _get_current_consumption_in_amps(em_controller)
-        if current_em_consumption_amps > float(tesla_config.config["homeMaxAmps"]):
+        if current_em_consumption_amps > float(cfg["homeMaxAmps"]):
             tsc_logger.info("Overload still present... starting stabilization")
             break
 
@@ -154,13 +170,26 @@ def handle_overload() -> None:
 
     charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
 
-    while (
-        vehicle_data["state"] == "online"
-        and vehicle_data["charge_state"]["charging_state"] == "Charging"
-        and tesla_api_calls < round(float(constants.MAX_QUERIES))
-        and round(float(charger_actual_current))
-        < round(float(tesla_config.config["chargerMaxAmps"]))
-    ):
+    while True:
+        # Always act on fresh config and telemetry
+        try:
+            _reload_config()
+            cfg = tesla_config.get_config()
+            vehicle_data = tesla_api.get_vehicle_data()
+        except HTTPException as e:
+            tsc_logger.error(f"Supervised session interrupted! {e}")
+            return
+        # Current charge limit in amps from fresh data
+        charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
+        # Check loop continuation conditions using fresh cfg
+        if not (
+            vehicle_data["state"] == "online"
+            and vehicle_data["charge_state"]["charging_state"] == "Charging"
+            and tesla_api_calls < int(constants.MAX_QUERIES)
+            and round(float(charger_actual_current))
+            < round(float(cfg["chargerMaxAmps"]))
+        ):
+            break
         _reload_config()
 
         # Get the current charge limit in amps
@@ -176,9 +205,9 @@ def handle_overload() -> None:
         new_charge_limit = _calculate_new_charge_limit(
             float(charger_actual_current),
             float(current_em_consumption_amps),
-            float(tesla_config.config["chargerMaxAmps"]),
-            float(tesla_config.config["chargerMinAmps"]),
-            float(tesla_config.config["homeMaxAmps"]),
+            float(cfg["chargerMaxAmps"]),
+            float(cfg["chargerMinAmps"]),
+            float(cfg["homeMaxAmps"]),
         )
 
         if round(float(new_charge_limit)) != round(float(charger_actual_current)):
@@ -193,12 +222,12 @@ def handle_overload() -> None:
         else:
             tsc_logger.info("No change in charge limit")
             if round(float(charger_actual_current)) == round(
-                float(tesla_config.config["chargerMaxAmps"])
+                float(cfg["chargerMaxAmps"])
             ):
                 tesla_api_calls += 1
 
         # Sleep for the configured time
-        time.sleep(round(float(tesla_config.config["sleepTimeSecs"])))
+        time.sleep(round(float(cfg["sleepTimeSecs"])))
 
         # Get the current vehicle data
         try:

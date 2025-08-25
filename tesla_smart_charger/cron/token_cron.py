@@ -17,12 +17,17 @@ tsc_logger = logger.get_logger()
 # Load charger configuration
 charger_config = ChargerConfig(constants.CONFIG_FILE)
 
+REFRESH_OK_INTERVAL = 10800   # 3 hours
+REFRESH_FAIL_INTERVAL = 300   # 5 minutes
+
 
 def refresh_tesla_token() -> bool:
     """Refresh the Tesla token."""
     tsc_logger.info("Refreshing Tesla token...")
-    charger_config.load_config()
-
+    load_result = charger_config.load_config()
+    if isinstance(load_result, dict) and "error" in load_result:
+        tsc_logger.error("Failed to load config: %s", load_result["error"])
+        return False
     cfg: Dict[str, Any] = charger_config.get_config() or {}
     client_id: Optional[str] = cfg.get("teslaClientId")
     refresh_token: Optional[str] = cfg.get("teslaRefreshToken")
@@ -57,7 +62,11 @@ def refresh_tesla_token() -> bool:
     except requests.RequestException as e:
         tsc_logger.error(f"Error refreshing token: {e!s}")
         if token_request is not None:
-            tsc_logger.debug("Token request object: %r", token_request)
+            tsc_logger.debug(
+                "Token request status=%s, body=%r",
+                getattr(token_request, "status_code", "?"),
+                getattr(token_request, "text", "")[:512],
+            )
         return False
 
     try:
@@ -95,20 +104,22 @@ def refresh_tesla_token() -> bool:
 def start_cron_token(stop_event: threading.Event) -> None:
     """Start the cron job to refresh the Tesla token."""
     sleep_time = 2
-    refresh_interval = 10800  # 3 hours
-    time_to_refresh = refresh_interval
-
+    refresh_interval = REFRESH_OK_INTERVAL
     tsc_logger.info("Starting cron job for token refresh ...")
-    refresh_tesla_token()
+    initial_success = refresh_tesla_token()
+    refresh_interval = REFRESH_FAIL_INTERVAL if not initial_success else REFRESH_OK_INTERVAL
+    time_to_refresh = refresh_interval
 
     while not stop_event.is_set():
         if time_to_refresh <= 0:
-            if not refresh_tesla_token():
-                refresh_interval = 300
-            else:
-                refresh_interval = 10800
+            success = refresh_tesla_token()
+            refresh_interval = REFRESH_FAIL_INTERVAL if not success else REFRESH_OK_INTERVAL
+            tsc_logger.info(
+                "Next token refresh in %ds (%s).",
+                refresh_interval,
+                "previous failure" if not success else "success",
+            )
             time_to_refresh = refresh_interval
-        # wait instead of sleep → responsive to stop_event
         stop_event.wait(sleep_time)
         time_to_refresh -= sleep_time
 
