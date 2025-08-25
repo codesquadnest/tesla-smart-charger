@@ -14,7 +14,7 @@ class ChargerConfig:
 
     Attributes
     ----------
-        config_file (str): str to the configuration file.
+        config_file (str): Path to the configuration file.
         config (dict): The configuration.
 
     """
@@ -25,7 +25,7 @@ class ChargerConfig:
 
         Args:
         ----
-            config_file (Path): Path to the configuration file.
+            config_file (str): Path to the configuration file.
 
         """
         self.config_file = Path(config_file)
@@ -64,7 +64,10 @@ class ChargerConfig:
             dict: The configuration.
 
         """
-        return self.config or {}
+        # Guard: always return error if config is not loaded
+        return (
+            self.config if self.config is not None else {"error": "Config not loaded."}
+        )
 
     def set_config(self, config: dict) -> dict:
         """
@@ -74,7 +77,7 @@ class ChargerConfig:
         ----
             config (dict): The configuration.
 
-        Returns:
+        Returns
         -------
             dict: The configuration.
 
@@ -106,7 +109,7 @@ class ChargerConfig:
 
         Raises:
         ------
-                SystemExit: If the configuration is not valid.
+                ValueError: If the configuration is not valid.
 
         """
         for key in constants.REQUIRED_CONFIG_KEYS:

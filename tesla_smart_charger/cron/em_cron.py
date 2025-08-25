@@ -18,23 +18,38 @@ OVERLOAD = False
 tesla_config = ChargerConfig(constants.CONFIG_FILE)
 tesla_config.load_config()
 
-# Initialize energy monitor controller safely
+# Defer creation to runtime; see _ensure_em_controller()
 em_controller = None
-try:
-    em_type = tesla_config.config.get("energyMonitorType")
-    em_ip = tesla_config.config.get("energyMonitorIp")
-    if em_type and em_ip:
-        em_controller = _em_controller.create_energy_monitor_controller(em_type, em_ip)
-    else:
-        tsc_logger.error("Energy monitor configuration missing (type or IP).")
-except Exception as e:
-    tsc_logger.error(f"Error creating energy monitor controller: {e!s}")
 
+
+def _ensure_em_controller() -> None:
+    global em_controller
+    # Load the latest config and guard on any load errors
+    cfg = tesla_config.get_config()
+    if isinstance(cfg, dict) and "error" in cfg:
+        tesla_config.load_config()
+        cfg = tesla_config.get_config()
+        if isinstance(cfg, dict) and "error" in cfg:
+            tsc_logger.error("Cannot initialize EM controller: %s", cfg["error"])
+            return
+
+    em_type = cfg.get("energyMonitorType")
+    em_ip   = cfg.get("energyMonitorIp")
+    if em_type and em_ip and em_controller is None:
+        try:
+            em_controller = _em_controller.create_energy_monitor_controller(em_type, em_ip)
+        except ValueError as e:
+            tsc_logger.error("Invalid EM controller type: %s", e)
 
 def _reload_config() -> None:
+    ...
     """Reload the configuration safely."""
     try:
         tesla_config.load_config()
+        cfg = tesla_config.get_config()
+        if "error" in cfg:
+            tsc_logger.error(f"Config not loaded: {cfg['error']}")
+            raise Exception(f"Config not loaded: {cfg['error']}")
     except Exception as e:
         tsc_logger.error(f"Failed to reload config: {e!s}")
 
@@ -63,8 +78,10 @@ def _check_power_consumption() -> None:
         return
 
     if em_controller is None:
-        tsc_logger.error("Energy monitor controller not initialized.")
-        return
+        _ensure_em_controller()
+        if em_controller is None:
+            tsc_logger.error("Energy monitor controller not initialized.")
+            return
 
     try:
         consumption = em_controller.get_consumption()
