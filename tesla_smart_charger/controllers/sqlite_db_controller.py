@@ -73,6 +73,8 @@ class SqliteDatabaseController(DatabaseController):
             data (dict): The data to insert into the database.
         """
         try:
+            if self.connection is None or self.cursor is None:
+                self.initialize_db()
             self.cursor.execute(
                 """
                 INSERT INTO overloads (start, end, duration)
@@ -98,6 +100,8 @@ class SqliteDatabaseController(DatabaseController):
             list: The data retrieved from the database.
         """
         try:
+            if self.connection is None or self.cursor is None:
+                self.initialize_db()
             self.cursor.execute(
                 """
                 SELECT * FROM overloads
@@ -117,6 +121,8 @@ class SqliteDatabaseController(DatabaseController):
     def delete_data(self) -> None:
         """Delete data from the database."""
         try:
+            if self.connection is None or self.cursor is None:
+                self.initialize_db()
             self.cursor.execute(
                 """
                 DELETE FROM overloads
@@ -137,6 +143,8 @@ class SqliteDatabaseController(DatabaseController):
             data (dict): The data to update in the database.
         """
         try:
+            if self.connection is None or self.cursor is None:
+                self.initialize_db()
             self.cursor.execute(
                 """
                 UPDATE overloads
