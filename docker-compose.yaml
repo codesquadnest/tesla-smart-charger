@@ -1,4 +1,3 @@
-# Docker Compose file for running the application
 services:
   tesla-http-proxy:
     build:
@@ -10,7 +9,12 @@ services:
     ports:
       - "4443:4443"
     restart: unless-stopped
-  
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   tesla-smart-charger:
     build:
       context: .
@@ -21,3 +25,8 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
