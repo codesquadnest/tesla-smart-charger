@@ -36,7 +36,7 @@ tesla-smart-charger = "tesla_smart_charger.__main__:main"
 
 [dependency-groups]
 dev = [
-    "black>=24.8.0",
+    "black>=25.11.0",
     "pytest>=8.3.4",
     "ruff>=0.8.4",
     "pytest-cov>=5.0.0",
