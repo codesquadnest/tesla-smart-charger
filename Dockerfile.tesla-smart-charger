@@ -1,41 +1,59 @@
-# Description: Dockerfile for the tesla-smart-charger application
+# Description: Dockerfile for the tesla-smart-charger application (v2)
+# Builds the React dashboard first, then packages the Python app.
 
-# Stage 1: Build the application
-FROM ghcr.io/astral-sh/uv:debian AS builder
+# ──────────────────────────────────────────────────────────────────────────────
+# Stage 1 — Build the React dashboard
+# ──────────────────────────────────────────────────────────────────────────────
+FROM node:22-slim AS dashboard-builder
+
+WORKDIR /dashboard
+
+COPY dashboard/package*.json ./
+RUN npm ci --silent
+
+COPY dashboard/ ./
+RUN npm run build
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Stage 2 — Build the Python package
+# ──────────────────────────────────────────────────────────────────────────────
+FROM ghcr.io/astral-sh/uv:debian AS python-builder
 
 WORKDIR /app
 
-# Copy project files
 COPY pyproject.toml pyproject.toml
 COPY tesla_smart_charger tesla_smart_charger
 COPY README.md README.md
 COPY certs certs
 
-# Install dependencies and build package
+# Copy built dashboard into the expected location
+COPY --from=dashboard-builder /dashboard/dist /app/dashboard/dist
+
 RUN uv build
 
-# Remove unnecessary files (optional cleanup)
+# Remove private key artefacts
 RUN rm -f /app/certs/private-key.pem /app/certs/public-key.pem
 
-# Stage 2: Final runtime image
+# ──────────────────────────────────────────────────────────────────────────────
+# Stage 3 — Final runtime image
+# ──────────────────────────────────────────────────────────────────────────────
 FROM python:3.13-slim
 
-# Environment configuration
 ENV TZ=Europe/Lisbon
 ENV API_PORT=8000
 ENV TESLA_CERTS_DIR=/app/certs
 
-# Copy application code and certs
-COPY --from=builder /app/dist /app/dist
-COPY --from=builder /app/tesla_smart_charger /app/tesla_smart_charger
-COPY --from=builder /app/certs $TESLA_CERTS_DIR
-
-# Set working directory and expose port
 WORKDIR /app
+
+COPY --from=python-builder /app/dist /app/dist
+COPY --from=python-builder /app/tesla_smart_charger /app/tesla_smart_charger
+COPY --from=python-builder /app/certs $TESLA_CERTS_DIR
+# Include the pre-built dashboard
+COPY --from=dashboard-builder /dashboard/dist /app/dashboard/dist
+
 EXPOSE ${API_PORT}
 
-# Install built app
 RUN pip install --no-cache-dir /app/dist/*.whl
 
-# Entrypoint
+# --monitor activates the energy monitor polling cron
 CMD ["tesla-smart-charger", "--monitor", "--verbose"]

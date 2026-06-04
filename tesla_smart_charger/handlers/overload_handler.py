@@ -1,90 +1,82 @@
-"""Handles the overload of the charger."""
+"""Handles overload events — supports single or multiple charging vehicles."""
 
 import math
+import threading
 import time
+from typing import List, Optional, Tuple
+
 from fastapi import HTTPException
 
 from tesla_smart_charger import constants, logger
-from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.controllers import em_controller as _em_controller
+from tesla_smart_charger.models import OverloadStrategy, VehicleConfig
 from tesla_smart_charger.tesla_api import TeslaAPI
 
-# Set up logging
 tsc_logger = logger.get_logger()
 
-controller_db = None
-tesla_config = ChargerConfig(constants.CONFIG_FILE)
-tesla_config.load_config()
+# Lock that guards the overload session flag
+_session_lock = threading.Lock()
+_session_active = False
 
 
-tesla_api = TeslaAPI(tesla_config)
+def is_session_active() -> bool:
+    with _session_lock:
+        return _session_active
 
 
-def _init_db_controller():
-    """Initialize the database controller."""
-    global controller_db
-    controller_db = db_controller.create_database_controller(
-        constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
-    )
-    controller_db.initialize_db()
-    if not controller_db:
-        tsc_logger.error("Failed to create database controller.")
+def _set_session(active: bool) -> None:
+    global _session_active
+    with _session_lock:
+        _session_active = active
 
 
-def _finish_overload_handling(start_time: str) -> None:
-    """Finish the overload handling."""
-    # Initialize the database controller
+# ─── Database helpers ──────────────────────────────────────────────────────────
+
+def _init_db() -> Optional[object]:
     try:
-        _init_db_controller()
-    except Exception as e:
-        tsc_logger.error("Database controller initialization failed: %s", e)
-        tsc_logger.info("Supervised session ended.")
-        return
-
-    # Save end time of the overload (yyyy-mm-dd HH:MM:SS) as a string
-    end_time = time.strftime("%Y-%m-%d %H:%M:%S")
-    overload_data = {"start": start_time, "end": end_time}
-
-    # Calculate the duration of the overload in seconds
-    try:
-        start_time_obj = time.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-        end_time_obj = time.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-        duration = time.mktime(end_time_obj) - time.mktime(start_time_obj)
-        overload_data["duration"] = str(duration)
-    except ValueError as e:
-        tsc_logger.error(f"Error calculating overload duration: {e}")
-        overload_data["duration"] = "0"
-
-    # Insert the overload data into the database
-    if controller_db:
-        try:
-            controller_db.insert_data(overload_data)
-            tsc_logger.info("Overload data saved to database")
-        except Exception as e:
-            tsc_logger.error("Error saving overload data to database: %s", e)
-        finally:
-            try:
-                controller_db.close_connection()
-            except Exception as e:
-                tsc_logger.warning("Error closing database connection: %s", e)
-    else:
-        tsc_logger.warning(
-            "Skipping data insertion and connection close: controller_db is not initialized."
+        ctrl = db_controller.create_database_controller(
+            constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
         )
+        ctrl.initialize_db()
+        return ctrl
+    except Exception as exc:
+        tsc_logger.error("Failed to initialise DB controller: %s", exc)
+        return None
 
 
-def _reload_config() -> None:
-    """Reload the config."""
-    tesla_config.load_config()
-    cfg = tesla_config.get_config()
-    if "error" in cfg:
-        msg = f"Config not loaded: {cfg['error']}"
-        tsc_logger.error(msg)
-        raise HTTPException(status_code=500, detail=msg)
-    tesla_api.charger_config = tesla_config
-    tesla_api.http_proxy = cfg.get("teslaHttpProxy") or ""
+def _save_event(start_time: str, vehicle_id: Optional[str] = None) -> None:
+    ctrl = _init_db()
+    if ctrl is None:
+        return
+    end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        s = time.mktime(time.strptime(start_time, "%Y-%m-%d %H:%M:%S"))
+        e = time.mktime(time.strptime(end_time, "%Y-%m-%d %H:%M:%S"))
+        duration = str(e - s)
+    except ValueError:
+        duration = "0"
+    try:
+        ctrl.insert_data(
+            {
+                "start": start_time,
+                "end": end_time,
+                "duration": duration,
+                "vehicle_id": vehicle_id or "",
+            }
+        )
+        tsc_logger.info("Overload event saved to database.")
+    except Exception as exc:
+        tsc_logger.error("Error saving overload event: %s", exc)
+    finally:
+        try:
+            ctrl.close_connection()
+        except Exception:
+            pass
 
+
+# ─── Calculation helpers ───────────────────────────────────────────────────────
 
 def _calculate_new_charge_limit(
     current_charge_limit: float,
@@ -94,140 +86,305 @@ def _calculate_new_charge_limit(
     home_max_amps: float,
 ) -> int:
     """
-    Calculate the new charge limit.
+    Compute the adjusted charge limit for a vehicle.
 
-    Based on the current charge limit and the current consumption of the house.
+    Reduces by the difference between current consumption and the home limit,
+    clamped to [min_charge_limit, max_charge_limit].
     """
-    consumption_difference = current_em_consumption - home_max_amps
+    excess = current_em_consumption - home_max_amps
+    new_limit = current_charge_limit - excess
 
-    # Adjust the charge limit based on the consumption difference
-    new_charge_limit = current_charge_limit - consumption_difference
-
-    if new_charge_limit > max_charge_limit:
-        new_charge_limit = max_charge_limit
-    elif new_charge_limit < min_charge_limit:
-        new_charge_limit = min_charge_limit
+    new_limit = max(min_charge_limit, min(new_limit, max_charge_limit))
 
     tsc_logger.debug(
-        f"New calculated charge limit: {new_charge_limit}A "
-        f"(current charge limit: {current_charge_limit}A, "
-        f"consumption difference: {consumption_difference:.2f}A)"
+        "Charge limit: %.1f → %.1f  (em=%.2f, max=%.1f, excess=%.2f)",
+        current_charge_limit,
+        new_limit,
+        current_em_consumption,
+        home_max_amps,
+        excess,
     )
+    return math.floor(new_limit)
 
-    return math.floor(float(new_charge_limit))
 
-
-def _get_current_consumption_in_amps(em_controller) -> float:
-    """Get the current consumption of the house in amps."""
+def _get_consumption(em_ctrl, app_config: AppConfig) -> float:
+    """Return current consumption in amps, 0.0 on error."""
+    voltage = app_config.system.voltage
     try:
-        current_em_consumption = em_controller.get_consumption() / 230
-        tsc_logger.debug(f"Current consumption in amps: {current_em_consumption:.2f}")
-    except ValueError as e:
-        tsc_logger.error(f"Error getting consumption: {e}")
+        watts = em_ctrl.get_consumption()
+        amps = float(watts) / voltage
+        tsc_logger.debug("Current consumption: %.2f A (%.1f W / %.0f V)", amps, watts, voltage)
+        return amps
+    except (ValueError, TypeError, ZeroDivisionError) as exc:
+        tsc_logger.error("Error reading consumption: %s", exc)
         return 0.0
-    return current_em_consumption
 
 
-def handle_overload() -> None:
-    """Handle the overload of the charger."""
-    tsc_logger.info("Handling overload! Supervised session started.")
-    tesla_api_calls = 0
+# ─── Multi-vehicle overload strategies ────────────────────────────────────────
 
-    # Save start time of the overload (yyyy-mm-dd HH:MM:SS) as a string
-    start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-
-    # Instantiate the Energy Monitor controller
-    cfg = tesla_config.get_config()
-    if "error" in cfg:
-        tsc_logger.error(f"Failed to load configuration: {cfg['error']}")
-        tsc_logger.info("Supervised session ended.")
-        return
-    try:
-        em_controller = _em_controller.create_energy_monitor_controller(
-            cfg["energyMonitorType"],
-            cfg["energyMonitorIp"],
-        )
-    except ValueError:
-        tsc_logger.error("Invalid energy monitor type")
-        tsc_logger.info("Supervised session ended.")
-        return
-
-    # Sleep for a longer time so the power consumption can stabilize after the overload
-    # while still checks if the house is consuming more power than the limit
-    for _ in range(10):
-        time.sleep(int(float(cfg["sleepTimeSecs"])))
+def _get_charging_vehicles(
+    apis: List[Tuple[VehicleConfig, TeslaAPI]]
+) -> List[Tuple[VehicleConfig, TeslaAPI, dict]]:
+    """Return (vehicle, api, vehicle_data) tuples for all actively charging vehicles."""
+    charging = []
+    for vehicle, api in apis:
+        if not vehicle.enabled:
+            continue
         try:
-            _reload_config()
-        except HTTPException as e:
-            tsc_logger.error(f"Supervised session interrupted during stabilization: {e}")
-            break
-        current_em_consumption_amps = _get_current_consumption_in_amps(em_controller)
-        if current_em_consumption_amps > float(cfg["homeMaxAmps"]):
-            tsc_logger.info("Overload still present... starting stabilization")
-            break
-    # Stabilize the power consumption after the overload
-    try:
-        _reload_config()
-        vehicle_data = tesla_api.get_vehicle_data()
-    except HTTPException as e:
-        tsc_logger.error(f"Supervised session interrupted! {e}")
-        return
-
-    charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
-
-    while True:
-        # Always act on fresh config and telemetry
-        try:
-            _reload_config()
-            cfg = tesla_config.get_config()
-            vehicle_data = tesla_api.get_vehicle_data()
-        except HTTPException as e:
-            tsc_logger.error(f"Supervised session interrupted! {e}")
-            break
-
-        charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
-
-        # Check loop continuation conditions using fresh cfg
-        if not (
-            vehicle_data["state"] == "online"
-            and vehicle_data["charge_state"]["charging_state"] == "Charging"
-            and tesla_api_calls < int(constants.MAX_QUERIES)
-            and math.floor(float(charger_actual_current))
-            < math.floor(float(cfg["chargerMaxAmps"]))
+            data = api.get_vehicle_data()
+        except HTTPException:
+            tsc_logger.warning("Could not fetch data for vehicle %s — skipping.", vehicle.id)
+            continue
+        if (
+            data.get("state") == "online"
+            and data.get("charge_state", {}).get("charging_state") == "Charging"
         ):
-            break
+            charging.append((vehicle, api, data))
+    return charging
 
-        # Get the current consumption of the house in amps
-        current_em_consumption_amps = _get_current_consumption_in_amps(em_controller)
-        if current_em_consumption_amps == 0.0:
-            break
 
-        # Calculate the new charge limit
-        new_charge_limit = _calculate_new_charge_limit(
-            float(charger_actual_current),
-            float(current_em_consumption_amps),
-            float(cfg["chargerMaxAmps"]),
-            float(cfg["chargerMinAmps"]),
-            float(cfg["homeMaxAmps"]),
+def _apply_proportional(
+    charging: List[Tuple[VehicleConfig, TeslaAPI, dict]],
+    em_amps: float,
+    home_max_amps: float,
+) -> bool:
+    """
+    Reduce each charging vehicle proportionally to clear the overload.
+
+    Returns True if at least one vehicle's limit was changed.
+    """
+    if not charging:
+        return False
+    changed = False
+    num = len(charging)
+    for vehicle, api, data in charging:
+        current = float(data["charge_state"]["charger_actual_current"])
+        new_limit = _calculate_new_charge_limit(
+            current,
+            em_amps,
+            vehicle.chargerMaxAmps,
+            vehicle.chargerMinAmps,
+            home_max_amps / num,  # each vehicle "owns" a slice of the budget
         )
-
-        if math.floor(float(new_charge_limit)) != math.floor(
-            float(charger_actual_current)
-        ):
+        if new_limit != math.floor(current):
             try:
-                tesla_api.set_charge_amp_limit(new_charge_limit)
-            except HTTPException as e:
-                tsc_logger.error(f"Supervised session interrupted! {e}")
-                return
-            # Only reset if the new limit is LOWER than before
-            if new_charge_limit < charger_actual_current:
-                tesla_api_calls = 0
-        else:
-            tsc_logger.info("No change in charge limit")
-            tesla_api_calls += 1
+                api.set_charge_amp_limit(new_limit)
+                changed = True
+            except HTTPException as exc:
+                tsc_logger.error(
+                    "Failed to set charge limit for %s: %s", vehicle.id, exc
+                )
+    return changed
 
-        # Sleep for the configured time
-        time.sleep(round(float(cfg["sleepTimeSecs"])))
 
-    _finish_overload_handling(start_time)
-    tsc_logger.info("Overload handled! Supervised session ended.")
+def _apply_priority(
+    charging: List[Tuple[VehicleConfig, TeslaAPI, dict]],
+    em_amps: float,
+    home_max_amps: float,
+) -> bool:
+    """
+    Reduce vehicles one at a time in reverse priority order
+    (lowest priority → highest priority) until overload is resolved.
+
+    Returns True if at least one vehicle's limit was changed.
+    """
+    # Sort ascending priority number: higher number = lower priority = reduce first
+    sorted_charging = sorted(charging, key=lambda x: -x[0].priority)
+    remaining_excess = em_amps - home_max_amps
+    changed = False
+
+    for vehicle, api, data in sorted_charging:
+        if remaining_excess <= 0:
+            break
+        current = float(data["charge_state"]["charger_actual_current"])
+        # How much can we reduce this vehicle?
+        reducible = current - vehicle.chargerMinAmps
+        reduction = min(reducible, remaining_excess)
+        new_limit = math.floor(current - reduction)
+        new_limit = max(int(vehicle.chargerMinAmps), new_limit)
+
+        if new_limit != math.floor(current):
+            try:
+                api.set_charge_amp_limit(new_limit)
+                remaining_excess -= reduction
+                changed = True
+            except HTTPException as exc:
+                tsc_logger.error(
+                    "Failed to set charge limit for %s: %s", vehicle.id, exc
+                )
+    return changed
+
+
+# ─── Public trigger (called by em_cron and the /overload HTTP endpoint) ────────
+
+def trigger_overload(app_config: AppConfig) -> Tuple[bool, str]:
+    """
+    Attempt to start an overload handling session.
+
+    Applies an initial downstep to all charging vehicles then spawns the
+    supervised ``handle_overload`` thread.
+
+    Returns ``(True, message)`` if a session was started,
+    ``(False, reason)`` if it was not.
+    """
+    if is_session_active():
+        return False, "overload handling session already active"
+
+    if not app_config.vehicles:
+        return False, "no vehicles configured"
+
+    cfg = app_config.system
+    initial_applied = False
+
+    for vehicle in app_config.vehicles:
+        if not vehicle.enabled:
+            continue
+        try:
+            api = TeslaAPI(vehicle)
+            data = api.get_vehicle_data()
+        except HTTPException:
+            continue
+
+        if (
+            data.get("state") == "online"
+            and data.get("charge_state", {}).get("charging_state") == "Charging"
+        ):
+            current = float(data["charge_state"]["charger_actual_current"])
+            new_limit = round(current * cfg.downStepPercentage)
+            new_limit = max(int(vehicle.chargerMinAmps), new_limit)
+            try:
+                api.set_charge_amp_limit(new_limit)
+                initial_applied = True
+            except HTTPException as exc:
+                tsc_logger.error("Initial downstep failed for %s: %s", vehicle.id, exc)
+
+    if not initial_applied:
+        return False, "no vehicles are currently charging"
+
+    t = threading.Thread(
+        target=handle_overload,
+        args=(app_config,),
+        name="tsc_handle_overload_thread",
+        daemon=True,
+    )
+    t.start()
+    return True, "overload handler session started"
+
+
+# ─── Main overload handler ────────────────────────────────────────────────────
+
+def handle_overload(app_config: AppConfig) -> None:
+    """
+    Top-level overload handler — runs in a dedicated thread.
+
+    Reads the current overload strategy from AppConfig and applies it
+    to all actively-charging vehicles.  Logs the event to the database.
+    The session flag is always cleared in a finally block, even on error.
+    """
+    _set_session(True)
+    start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+    tsc_logger.info("Overload handler started. Supervised session begun.")
+
+    # Keep a reference to the last known charging set so _save_event can use it
+    charging: List[Tuple[VehicleConfig, TeslaAPI, dict]] = []
+
+    try:
+        # Build (VehicleConfig, TeslaAPI) pairs for every enabled vehicle
+        apis: List[Tuple[VehicleConfig, TeslaAPI]] = [
+            (v, TeslaAPI(v)) for v in app_config.vehicles if v.enabled
+        ]
+
+        cfg = app_config.system
+
+        # Instantiate energy monitor
+        try:
+            em_ctrl = _em_controller.create_energy_monitor_controller(
+                cfg.energyMonitorType, cfg.energyMonitorIp
+            )
+        except ValueError:
+            tsc_logger.error("Invalid energy monitor type '%s'.", cfg.energyMonitorType)
+            return
+
+        # ── Stabilisation phase ──────────────────────────────────────────────
+        # Wait up to 10 × sleep_time for consumption to stabilise after first step
+        for _ in range(10):
+            time.sleep(cfg.sleepTimeSecs)
+            cfg = app_config.system  # refresh
+            em_amps = _get_consumption(em_ctrl, app_config)
+            if em_amps > cfg.homeMaxAmps:
+                tsc_logger.info("Overload still present after stabilisation wait.")
+                break
+
+        # ── Supervised adjustment loop ───────────────────────────────────────
+        no_change_count = 0
+
+        while True:
+            cfg = app_config.system  # always act on fresh config
+
+            # Refresh vehicle API references in case tokens were updated
+            apis = [(v, TeslaAPI(v)) for v in app_config.vehicles if v.enabled]
+
+            charging = _get_charging_vehicles(apis)
+            if not charging:
+                tsc_logger.info("No vehicles actively charging — ending session.")
+                break
+
+            em_amps = _get_consumption(em_ctrl, app_config)
+            if em_amps == 0.0:
+                tsc_logger.warning("Consumption read returned 0 — ending session.")
+                break
+
+            if em_amps <= cfg.homeMaxAmps:
+                tsc_logger.info(
+                    "Consumption within limits (%.2fA ≤ %.2fA) — ending session.",
+                    em_amps,
+                    cfg.homeMaxAmps,
+                )
+                break
+
+            if no_change_count >= constants.MAX_QUERIES:
+                tsc_logger.info(
+                    "No change for %d consecutive iterations — ending session.",
+                    no_change_count,
+                )
+                break
+
+            # Check whether all vehicles are already at minimum before applying
+            all_at_min = all(
+                float(d["charge_state"]["charger_actual_current"]) <= v.chargerMinAmps
+                for v, _, d in charging
+            )
+            if all_at_min:
+                tsc_logger.info("All vehicles at minimum charge limit — ending session.")
+                break
+
+            strategy = cfg.overloadStrategy
+            tsc_logger.info(
+                "Applying %s strategy | em=%.2fA | home_max=%.2fA | vehicles=%d",
+                strategy,
+                em_amps,
+                cfg.homeMaxAmps,
+                len(charging),
+            )
+
+            if strategy == OverloadStrategy.PRIORITY:
+                changed = _apply_priority(charging, em_amps, cfg.homeMaxAmps)
+            else:
+                changed = _apply_proportional(charging, em_amps, cfg.homeMaxAmps)
+
+            # Only count iterations where no adjustment could be made
+            if not changed:
+                no_change_count += 1
+            else:
+                no_change_count = 0  # reset on successful adjustment
+
+            time.sleep(cfg.sleepTimeSecs)
+
+    except Exception as exc:
+        tsc_logger.error("Unhandled error in overload handler: %s", exc)
+    finally:
+        # Always persist the event and release the session lock
+        first_vid = charging[0][0].id if charging else None
+        _save_event(start_time, first_vid)
+        _set_session(False)
+        tsc_logger.info("Overload handler finished. Supervised session ended.")
