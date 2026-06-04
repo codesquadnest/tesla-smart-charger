@@ -21,10 +21,20 @@ services:
       dockerfile: Dockerfile.tesla-smart-charger
     container_name: tesla-smart-charger
     volumes:
-      - ./config.json:/app/config.json
+      # Persistent config directory (new v2 format: system.json + vehicles.json)
+      - ./config:/app/config
+      # Persistent database
+      - ./data:/app/data
+      # TLS certs for the proxy
+      - ./certs:/app/certs:ro
     ports:
       - "8000:8000"
+    environment:
+      - TESLA_CERTS_DIR=/app/certs
+      - TZ=Europe/Lisbon
     restart: unless-stopped
+    depends_on:
+      - tesla-http-proxy
     logging:
       driver: "json-file"
       options:

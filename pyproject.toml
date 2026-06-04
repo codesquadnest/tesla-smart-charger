@@ -1,6 +1,6 @@
 [project]
 name = "tesla-smart-charger"
-version = "1.1.2"
+version = "2.0.0"
 description = "Dynamic charge your tesla using default charger"
 authors = [{ name = "Pedro Baptista", email = "pedro.miguel.baptista@gmail.com" }]
 requires-python = ">3.9.1, <4.0"
@@ -16,6 +16,7 @@ dependencies = [
     "fastapi>=0.115.6",
     "uvicorn[standard]>=0.39.0",
     "retrying>=1.3.4",
+    "bcrypt>=4.0.0",
 ]
 include = [
     "pyproject.toml",
@@ -41,7 +42,7 @@ dev = [
     "ruff>=0.15.10",
     "pytest-cov>=5.0.0",
     "tox>=4.23.2",
-    "httpx>=0.28.1",
+    "httpx2>=0.28.1",
 ]
 docs = [
     "mkdocs>=1.6.1",

@@ -20,13 +20,65 @@ REQUEST_DELAY_MS = 3000
 # Maximum number of queries to the Tesla API during overload handling session
 MAX_QUERIES = 5
 
-# Path to the configuration file
+# ─── Config files ──────────────────────────────────────────────────────────────
+
+# New structured config directory
+CONFIG_DIR = "config"
+SYSTEM_CONFIG_FILE = "config/system.json"
+VEHICLES_CONFIG_FILE = "config/vehicles.json"
+
+# Legacy config file (auto-migrated on first startup)
+LEGACY_CONFIG_FILE = "config.json"
+
+# Kept for backward compatibility with existing tests / ChargerConfig
 CONFIG_FILE = "config.json"
 
-# Supported energy monitor types
+# ─── Tesla API ─────────────────────────────────────────────────────────────────
+
+# URL for the Tesla Auth API (token refresh — region-agnostic)
+TESLA_API_TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token"
+
+# Tesla OAuth 2.0 authorization endpoint
+TESLA_AUTH_URL = "https://auth.tesla.com/oauth2/v3/authorize"
+
+# Tesla Fleet API base URLs per region
+TESLA_FLEET_API_URLS: dict[str, str] = {
+    "eu": "https://fleet-api.prd.eu.vn.cloud.tesla.com",
+    "na": "https://fleet-api.prd.na.vn.cloud.tesla.com",
+    "ap": "https://fleet-api.prd.ap.vn.cloud.tesla.com",
+}
+
+# Default audience (EU — kept for backward compatibility)
+TESLA_AUDIENCE = TESLA_FLEET_API_URLS["eu"]
+
+# Tesla Fleet API path templates
+TESLA_API_VEHICLES_URL = "/api/1/vehicles"
+TESLA_API_VEHICLE_DATA_URL = "/api/1/vehicles/{id}/vehicle_data"
+TESLA_API_CHARGE_AMP_LIMIT_URL = "/api/1/vehicles/{id}/command/set_charging_amps"
+
+# Tesla OAuth scopes required by this application
+TESLA_OAUTH_SCOPES = (
+    "openid offline_access vehicle_device_data vehicle_cmds vehicle_charging_cmds"
+)
+
+# ─── Energy Monitor ────────────────────────────────────────────────────────────
+
 SUPPORTED_EM_TYPES = ["shelly_em"]
 
-# Default configuration
+EM_CONTROLLER_STATE_IDLE = "IDLE"
+EM_CONTROLLER_STATE_OVERLOAD = "OVERLOAD"
+EM_CONTROLLER_STATE_UNDERLOAD = "UNDERLOAD"
+
+# ─── Database ──────────────────────────────────────────────────────────────────
+
+DB_NAME = "tesla_smart_charger"
+DB_FILE_PATH = "tesla_smart_charger.db"
+DB_TYPE = "sqlite"
+DB_HOST = "localhost"
+DB_PORT = "5432"
+
+# ─── Legacy config (kept for backward compatibility with ChargerConfig) ─────────
+
 DEFAULT_CONFIG = {
     "homeMaxAmps": "30.0",
     "chargerMaxAmps": "25.0",
@@ -43,7 +95,6 @@ DEFAULT_CONFIG = {
     "teslaClientId": "",
 }
 
-# Required configuration keys
 REQUIRED_CONFIG_KEYS = [
     "homeMaxAmps",
     "chargerMaxAmps",
@@ -59,30 +110,3 @@ REQUIRED_CONFIG_KEYS = [
     "teslaHttpProxy",
     "teslaClientId",
 ]
-
-# URL for the Tesla API to get the access token
-TESLA_API_TOKEN_URL = "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token"
-
-# URL for Tesla audience
-TESLA_AUDIENCE = "https://fleet-api.prd.eu.vn.cloud.tesla.com"
-
-# URL for the Tesla API to get the vehicle list
-TESLA_API_VEHICLES_URL = "/api/1/vehicles"
-
-# URL for the Tesla API to get the vehicle data
-TESLA_API_VEHICLE_DATA_URL = f"/api/1/vehicles/{{id}}/vehicle_data"  # noqa: F541
-
-# URL for the Tesla API to set the charging Amperage limit
-TESLA_API_CHARGE_AMP_LIMIT_URL = f"/api/1/vehicles/{{id}}/command/set_charging_amps"  # noqa: F541
-
-# Energy Monitor Controller states
-EM_CONTROLLER_STATE_IDLE = "IDLE"
-EM_CONTROLLER_STATE_OVERLOAD = "OVERLOAD"
-EM_CONTROLLER_STATE_UNDERLOAD = "UNDERLOAD"
-
-# Database settings
-DB_NAME = "tesla_smart_charger"
-DB_FILE_PATH = "tesla_smart_charger.db"
-DB_TYPE = "sqlite"
-DB_HOST = "localhost"
-DB_PORT = "5432"

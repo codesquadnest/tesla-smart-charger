@@ -1,327 +1,236 @@
 """
-Tesla Smart Car Charger.
+Tesla Smart Charger — application entry point.
 
-This script is the main entry point for the Tesla smart car charger.
+Wires together FastAPI routes, AppConfig, background cron threads,
+and serves the React dashboard from ``dashboard/dist/``.
 """
 
 import argparse
 import asyncio
 import atexit
-import json
 import sys
 import threading
+from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
-from tesla_smart_charger import constants, utils, logger
-from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger import constants, logger
+from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.controllers import db_controller
-from tesla_smart_charger.cron.em_cron import start_cron_monitor
-from tesla_smart_charger.cron.token_cron import start_cron_token
-from tesla_smart_charger.handlers.overload_handler import handle_overload
-from tesla_smart_charger.tesla_api import TeslaAPI
+from tesla_smart_charger.cron import em_cron, token_cron
+from tesla_smart_charger.handlers import overload_handler
+from tesla_smart_charger.routes import (
+    auth_routes,
+    config_routes,
+    history_routes,
+    status_routes,
+    vehicle_routes,
+)
 
+# ─── Logging ──────────────────────────────────────────────────────────────────
 
-class Config(BaseModel):
-    """Config class for Tesla Smart Charger."""
-
-    homeMaxAmps: float
-    chargerMaxAmps: float
-    chargerMinAmps: float
-    downStepPercentage: float
-    upStepPercentage: float
-    sleepTimeSecs: int
-    energyMonitorIp: str
-    energyMonitorType: str
-    teslaVehicleId: str
-    teslaAccessToken: str
-    teslaRefreshToken: str
-    teslaHttpProxy: str
-    teslaClientId: str
-
-
-# Set up tsm_logger
 tsm_logger = logger.get_logger()
 
-# Create the FastAPI app
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
-)
+# ─── Shared singleton config ──────────────────────────────────────────────────
 
-# Mount a directory for website files (e.g., CSS, JavaScript)
-app.mount(
-    "/website", StaticFiles(directory="tesla_smart_charger/website"), name="website"
-)
+app_config = AppConfig(constants.CONFIG_DIR)
+app_config.load()
 
-# Create the charger config object
-tesla_config = ChargerConfig(constants.CONFIG_FILE)
-tesla_config.load_config()
+# ─── Thread helpers ────────────────────────────────────────────────────────────
 
-# Create the Tesla API object
-tesla_api = TeslaAPI(tesla_config)
-
-# Create an event to signal the cron job to stop
 stop_event = threading.Event()
 
 
-def _get_thread_by_name(thread_name: str) -> Optional[threading.Thread]:
-    """Retrieve a thread by its name."""
-    for thread in threading.enumerate():
-        if thread.name == thread_name:
-            return thread
+def _get_thread(name: str) -> Optional[threading.Thread]:
+    for t in threading.enumerate():
+        if t.name == name:
+            return t
     return None
 
 
-def _start_cron_job(
-    target_job: callable, stop_event: threading.Event, name: str
-) -> None:
-    """Start a new cron thread with the provided name."""
-    cron_thread = threading.Thread(
-        target=target_job,
-        args=(stop_event,),
-        name=name,
+def _start_thread(target, name: str, *extra_args) -> None:
+    t = threading.Thread(
+        target=target, args=(stop_event, *extra_args), name=name, daemon=True
     )
-    cron_thread.start()
+    t.start()
+    tsm_logger.info("Thread started: %s", name)
 
 
-def _init_db(type: str) -> None:
-    """Initialize the database."""
-    constants.DB_TYPE = type
+def _monitor_active() -> bool:
+    return _get_thread("tsc_energy_monitor_thread") is not None
+
+
+# ─── Database initialisation ───────────────────────────────────────────────────
+
+def _init_db(db_type: str) -> None:
+    constants.DB_TYPE = db_type
     try:
-        controller_db = db_controller.create_database_controller(
-            type, constants.DB_NAME, constants.DB_FILE_PATH
+        ctrl = db_controller.create_database_controller(
+            db_type, constants.DB_NAME, constants.DB_FILE_PATH
         )
-        controller_db.initialize_db()
-        controller_db.close_connection()
-        tsm_logger.info(f"Database initialized with type: {type}")
-    except Exception as e:
-        tsm_logger.error(f"Failed to initialize database: {e}")
+        ctrl.initialize_db()
+        ctrl.close_connection()
+        tsm_logger.info("Database initialised (%s).", db_type)
+    except Exception as exc:
+        tsm_logger.error("Database initialisation failed: %s", exc)
         sys.exit(1)
 
 
-# Register the startup and shutdown events
-async def startup_event() -> None:
-    """Startup event handler."""
-    tsm_logger.info("FastAPI application starting up")
-    _start_cron_job(start_cron_token, stop_event, "tsc_token_cron_thread")
+# ─── FastAPI lifespan ──────────────────────────────────────────────────────────
 
-
-async def shutdown_event() -> None:
-    """Shutdown event handler."""
-    tsm_logger.info("FastAPI application shutting down")
-
-    # Signal the cron jobs to stop
+@asynccontextmanager
+async def lifespan(application: FastAPI):  # noqa: ARG001
+    tsm_logger.info("Tesla Smart Charger starting up.")
+    _start_thread(token_cron.start_cron_token, "tsc_token_cron_thread", app_config)
+    yield
+    tsm_logger.info("Tesla Smart Charger shutting down.")
     stop_event.set()
-
-    # Wait for the cron jobs to stop
-    for thread in threading.enumerate():
-        if thread.name in ["tsc_energy_monitor_thread", "tsc_token_cron_thread"]:
-            thread.join()
-            tsm_logger.info(f"{thread.name} stopped")
-
-    await asyncio.sleep(2)
+    for tname in ("tsc_energy_monitor_thread", "tsc_token_cron_thread"):
+        t = _get_thread(tname)
+        if t:
+            t.join(timeout=10)
+            tsm_logger.info("%s stopped.", tname)
+    await asyncio.sleep(1)
 
 
-def exit_handler() -> None:
-    """Exit handler."""
-    tsm_logger.info("Performing cleanup tasks before exit")
+# ─── FastAPI application ───────────────────────────────────────────────────────
 
+app = FastAPI(title="Tesla Smart Charger", version="2.0.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=app_config.system.corsOrigins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Register the exit_handler to run when the application exits
-atexit.register(exit_handler)
+# ─── Include versioned route modules ──────────────────────────────────────────
 
-# Add event handlers to the FastAPI app
-app.add_event_handler("startup", startup_event)
-app.add_event_handler("shutdown", shutdown_event)
+config_routes.init(app_config)
+vehicle_routes.init(app_config)
+auth_routes.init(app_config)
+status_routes.init(app_config, _monitor_active, overload_handler.is_session_active)
 
+app.include_router(status_routes.router)
+app.include_router(config_routes.router)
+app.include_router(vehicle_routes.router)
+app.include_router(auth_routes.router)
+app.include_router(history_routes.router)
 
-@app.get("/")
-def serve_index():
-    """Serve the main HTML page."""
-    return FileResponse("tesla_smart_charger/website/index.html")
-
+# ─── Legacy endpoints (kept for backward compatibility) ───────────────────────
 
 @app.get("/overload")
 def overload() -> JSONResponse:
     """
-    Overload endpoint.
+    Trigger an overload handling session.
 
-    This endpoint is called when the total consumption of the house exceeds the power
-    limit.
+    Called automatically by the energy monitor cron when consumption
+    exceeds the home limit.  Can also be called manually for testing.
     """
-    # If a thread handler already exists, no other will be started
-    if _get_thread_by_name("tsc_handle_overload_thread"):
-        response = {"msg": "overload handling session already started"}
-        return JSONResponse(content=response, status_code=202)
-    # Load the configuration to get new token if needed
-    tesla_config.load_config()
-    load_result = tesla_config.load_config()
-    if isinstance(load_result, dict) and "error" in load_result:
-        raise HTTPException(status_code=500, detail=load_result["error"])
-    try:
-        vehicle_data = tesla_api.get_vehicle_data()
-    except HTTPException as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {e!s}") from e
-
-    if (
-        vehicle_data["state"] == "online"
-        and vehicle_data["charge_state"]["charging_state"] == "Charging"
-    ):
-        # Get the current charge limit
-        charger_actual_current = vehicle_data["charge_state"]["charger_actual_current"]
-
-        # Calculate the new charge limit
-        new_charge_limit = round(float(charger_actual_current)) * float(
-            tesla_config.config["downStepPercentage"],
-        )
-
-        try:
-            # Set the new charge limit
-            response = tesla_api.set_charge_amp_limit(round(float(new_charge_limit)))
-        except HTTPException as e:
-            return JSONResponse(content={"error": f"Set charge limit failed: {e!s}"}, status_code=500)
-
-        # Start the overload handler in a separate thread
-        overload_thread = threading.Thread(
-            target=handle_overload,
-            name="tsc_handle_overload_thread",
-        )
-        overload_thread.start()
-
-        response = {"msg": "overload handler session started"}
-        return JSONResponse(content=response, status_code=200)
-
-    response = {"msg": "overload handling not required"}
-    return JSONResponse(content=response, status_code=202)
+    started, msg = overload_handler.trigger_overload(app_config)
+    status_code = 200 if started else 202
+    return JSONResponse({"msg": msg}, status_code=status_code)
 
 
 @app.post("/underload")
 def underload() -> JSONResponse:
-    """Underload endpoint."""
-    response = {"msg": "underload session not implemented"}
-    return JSONResponse(content=response, status_code=404)
+    return JSONResponse({"msg": "underload session not yet implemented"}, status_code=404)
 
 
-@app.get("/config")
-def get_config() -> JSONResponse:
-    """Get the current configuration."""
-    tesla_config.load_config()
-    response = tesla_config.get_config()
+# ─── Static files — React dashboard ───────────────────────────────────────────
 
-    if "error" in response:
-        raise HTTPException(status_code=500, detail=response["error"])
+DASHBOARD_DIST = Path("dashboard/dist")
+DASHBOARD_ASSETS = DASHBOARD_DIST / "assets"
 
-    return JSONResponse(content=response, status_code=200)
+if DASHBOARD_ASSETS.exists():
+    app.mount("/assets", StaticFiles(directory=str(DASHBOARD_ASSETS)), name="assets")
 
 
-@app.post("/config")
-def set_config(config: Config) -> JSONResponse:
-    """Set the configuration."""
-    try:
-        tesla_config.set_config(json.loads(config.model_dump_json()))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to set config: {e!s}")
-    response = tesla_config.get_config()
-    return JSONResponse(content=response, status_code=200)
+@app.get("/")
+def serve_index() -> FileResponse:
+    """Serve the React SPA entry point."""
+    index_path = DASHBOARD_DIST / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    legacy = Path("tesla_smart_charger/website/index.html")
+    if legacy.exists():
+        return FileResponse(str(legacy))
+    raise HTTPException(status_code=503, detail="Dashboard not built. Run: cd dashboard && npm install && npm run build")
 
 
-@app.get("/history/{num_records}")
-def get_history(num_records: int) -> JSONResponse:
-    """Get the history of the charger."""
-    controller_db = None
-    try:
-        controller_db = db_controller.create_database_controller(
-            constants.DB_TYPE, constants.DB_NAME, constants.DB_FILE_PATH
-        )
-        controller_db.initialize_db()
-        data = controller_db.get_data(num_records)
-        response = {"data": data}
-        return JSONResponse(content=response, status_code=200)
-    except Exception as e:
-        tsm_logger.error(f"Failed to initialize database: {e}")
-        raise HTTPException(
-            status_code=500, detail="Database connection not initialized"
-        ) from e
-    finally:
-        if controller_db:
-            controller_db.close_connection()
+@app.get("/{full_path:path}")
+def spa_catch_all(full_path: str) -> FileResponse:
+    """Catch-all for React Router client-side navigation."""
+    static_file = DASHBOARD_DIST / full_path
+    if static_file.is_file():
+        return FileResponse(str(static_file))
+    index_path = DASHBOARD_DIST / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    raise HTTPException(status_code=404, detail="Not found")
 
+
+# ─── Exit handler ─────────────────────────────────────────────────────────────
+
+def _exit_handler() -> None:
+    tsm_logger.info("Exit handler: cleanup complete.")
+
+
+atexit.register(_exit_handler)
+
+
+# ─── CLI entry point ───────────────────────────────────────────────────────────
 
 def main() -> None:
-    """Entry point for the Tesla smart charger."""
-    # Parse the command line arguments
     parser = argparse.ArgumentParser(
-        description="Tesla smart charger",
+        description="Tesla Smart Charger",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument("--database", default="sqlite", help="Database backend type")
+    parser.add_argument("-p", "--port", default=8000, type=int, help="HTTP port")
     parser.add_argument(
-        "--database",
-        default="sqlite",
-        help="The type of database to use",
-    )
-    parser.add_argument(
-        "-p",
-        "--port",
-        default=8000,
-        type=int,
-        help="The port to run the FastAPI server on",
-    )
-    parser.add_argument(
-        "-m",
-        "--monitor",
-        action="store_true",
-        help="Monitor the energy consumption of the house",
+        "-m", "--monitor", action="store_true", help="Enable energy monitor polling"
     )
     parser.add_argument(
         "vehicles",
-        help="Get the list of vehicles from the Tesla API",
         nargs="?",
+        help="Print vehicle list from Tesla API and exit",
     )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        default=constants.VERBOSE,
-        help="Enable verbose mode",
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", default=constants.VERBOSE)
 
-    # Parse the arguments
     args = parser.parse_args()
 
-    # Configure verbose mode
     if args.verbose:
-        # tsm_logger.getLogger().setLevel(tsm_logger.DEBUG)
         constants.VERBOSE = True
 
     if args.vehicles:
-        # Get the vehicles from the Tesla API
-        try:
-            vehicles = tesla_api.get_vehicles()
-        except HTTPException as e:
-            tsm_logger.error(f"Request failed: {str(e)}")
-            sys.exit(1)
-        utils.show_vehicles(vehicles)
+        vehicles_list = app_config.vehicles
+        if not vehicles_list:
+            print("No vehicles configured yet. Complete the onboarding wizard first.")
+            sys.exit(0)
+        from tesla_smart_charger import utils
+        from tesla_smart_charger.tesla_api import TeslaAPI
+
+        for v in vehicles_list:
+            try:
+                api = TeslaAPI(v)
+                remote = api.get_vehicles()
+                utils.show_vehicles(remote)
+            except Exception as exc:
+                tsm_logger.error("Could not fetch vehicles for %s: %s", v.id, exc)
         sys.exit(0)
 
-    # Initialize the database
     _init_db(args.database)
 
     if args.monitor:
-        # Monitor the energy consumption of the house
-        _start_cron_job(start_cron_monitor, stop_event, "tsc_energy_monitor_thread")
+        _start_thread(em_cron.start_cron_monitor, "tsc_energy_monitor_thread", app_config)
 
-    # Start the FastAPI server
     uvicorn.run(app=app, host="0.0.0.0", port=args.port)
 
 

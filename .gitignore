@@ -165,5 +165,20 @@ cython_debug/
 # VSCode
 .vscode/
 
-# uv lock
-uv.lock
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# Local Docker overrides (developer-specific, never commit)
+docker-compose.override.yml
+
+# Runtime config — contains credentials (Tesla tokens, etc.)
+config/
+config.json
+
+# SQLite database and Docker data volume
+*.db
+data/
+
+# TLS private key (public key is safe to commit)
+certs/private-key.pem

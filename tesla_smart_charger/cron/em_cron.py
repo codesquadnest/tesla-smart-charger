@@ -1,67 +1,47 @@
-"""Python script to monitor the power consumption of the house."""
+"""Energy-monitor polling cron — triggers overload handling when needed."""
 
 import threading
-import requests
+
 from retrying import retry
-from typing import Optional
 
 from tesla_smart_charger import constants, logger
-from tesla_smart_charger.charger_config import ChargerConfig
+from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.controllers import em_controller as _em_controller
+from tesla_smart_charger.handlers import overload_handler
 
-# Set up logging
 tsc_logger = logger.get_logger()
 
+# Global overload flag (toggled by this module only)
 OVERLOAD = False
-
-# Load the Tesla charger configuration
-tesla_config = ChargerConfig(constants.CONFIG_FILE)
-tesla_config.load_config()
-
-# Defer creation to runtime; see _ensure_em_controller()
-em_controller = None
-
-
-def _ensure_em_controller() -> None:
-    global em_controller
-    # Load the latest config and guard on any load errors
-    cfg = tesla_config.get_config()
-    if isinstance(cfg, dict) and "error" in cfg:
-        tesla_config.load_config()
-        cfg = tesla_config.get_config()
-        if isinstance(cfg, dict) and "error" in cfg:
-            tsc_logger.error("Cannot initialize EM controller: %s", cfg["error"])
-            return
-
-    em_type = cfg.get("energyMonitorType")
-    em_ip   = cfg.get("energyMonitorIp")
-    if em_type and em_ip and em_controller is None:
-        try:
-            em_controller = _em_controller.create_energy_monitor_controller(em_type, em_ip)
-        except ValueError as e:
-            tsc_logger.error("Invalid EM controller type: %s", e)
-
-def _reload_config() -> None:
-    ...
-    """Reload the configuration safely."""
-    try:
-        tesla_config.load_config()
-        cfg = tesla_config.get_config()
-        if "error" in cfg:
-            tsc_logger.error(f"Config not loaded: {cfg['error']}")
-            raise Exception(f"Config not loaded: {cfg['error']}")
-    except Exception as e:
-        tsc_logger.error(f"Failed to reload config: {e!s}")
 
 
 def _toggle_overload(overload: bool) -> bool:
-    """Toggle the overload status and return whether it was toggled."""
+    """Set the OVERLOAD flag; returns True if the value changed."""
     global OVERLOAD
     if overload != OVERLOAD:
         OVERLOAD = overload
-        tsc_logger.info("Overload status changed to: %s", OVERLOAD)
+        tsc_logger.info("Overload flag → %s", OVERLOAD)
         return True
     return False
+
+
+def _get_em_controller(app_config: AppConfig):
+    """Create and return an energy monitor controller, or None on failure."""
+    cfg = app_config.system
+    if not cfg.energyMonitorType or not cfg.energyMonitorIp:
+        tsc_logger.error(
+            "Energy monitor not configured (type=%r, ip=%r).",
+            cfg.energyMonitorType,
+            cfg.energyMonitorIp,
+        )
+        return None
+    try:
+        return _em_controller.create_energy_monitor_controller(
+            cfg.energyMonitorType, cfg.energyMonitorIp
+        )
+    except ValueError as exc:
+        tsc_logger.error("Invalid EM controller type: %s", exc)
+        return None
 
 
 @retry(
@@ -69,75 +49,53 @@ def _toggle_overload(overload: bool) -> bool:
     wait_exponential_max=10000,
     stop_max_attempt_number=3,
 )
-def _check_power_consumption() -> None:
-    """Check the power consumption of the house."""
-    _reload_config()
-
-    if not tesla_config.config:
-        tsc_logger.error("Failed to load configuration.")
-        return
-
-    if em_controller is None:
-        _ensure_em_controller()
-        if em_controller is None:
-            tsc_logger.error("Energy monitor controller not initialized.")
-            return
+def _check_power_consumption(em_ctrl, app_config: AppConfig) -> None:
+    """Poll the energy monitor and trigger overload handling if needed."""
+    cfg = app_config.system
 
     try:
-        consumption = em_controller.get_consumption()
-        if consumption is None:
-            raise ValueError("Energy monitor returned None")
-        current_em_consumption_amps = float(consumption) / 230.0
-        tsc_logger.debug(
-            "Current consumption in amps: %.2f", current_em_consumption_amps
-        )
-    except (ValueError, TypeError) as e:
-        tsc_logger.error(f"Error getting consumption: {e!s}")
+        watts = em_ctrl.get_consumption()
+        if watts is None:
+            raise ValueError("EM returned None")
+        em_amps = float(watts) / max(cfg.voltage, 1.0)
+        tsc_logger.debug("Consumption: %.2f A (%.1f W)", em_amps, watts)
+    except (ValueError, TypeError) as exc:
+        tsc_logger.error("Error reading consumption: %s", exc)
         return
 
-    try:
-        max_amps_str: Optional[str] = tesla_config.config.get("homeMaxAmps")
-        max_amps = float(max_amps_str) if max_amps_str is not None else 0.0
-    except ValueError:
-        tsc_logger.error(
-            f"Invalid homeMaxAmps value: {tesla_config.config.get('homeMaxAmps')}"
+    if em_amps > cfg.homeMaxAmps and _toggle_overload(True):
+        tsc_logger.warning(
+            "Overload detected! %.2f A > %.2f A", em_amps, cfg.homeMaxAmps
         )
-        return
-
-    if current_em_consumption_amps > max_amps and _toggle_overload(overload=True):
-        tsc_logger.warning("Overload detected!")
-        host_ip = tesla_config.config.get("hostIp", "localhost")
-        api_port = tesla_config.config.get("apiPort", "8000")
-        url = f"http://{host_ip}:{api_port}/overload"
-
-        try:
-            with requests.Session() as session:
-                response = session.get(url, timeout=20)
-                if response.status_code not in (200, 202):
-                    tsc_logger.error(
-                        "Unexpected status code %s from overload endpoint, body=%r",
-                        response.status_code,
-                        response.text,
-                    )
-        except requests.RequestException as e:
-            tsc_logger.error(f"Connection error: {e!s}")
+        # Trigger directly — no HTTP round-trip needed
+        started, msg = overload_handler.trigger_overload(app_config)
+        if not started:
+            tsc_logger.info("Overload trigger skipped: %s", msg)
     else:
-        _toggle_overload(overload=False)
+        _toggle_overload(False)
 
 
-def start_cron_monitor(stop_event: threading.Event) -> None:
-    """Start the cron job to monitor power consumption."""
-    tsc_logger.info("Monitoring started!")
-    sleep_time = 1
+def start_cron_monitor(stop_event: threading.Event, app_config: AppConfig) -> None:
+    """Cron thread: polls the energy monitor every 15 seconds."""
+    tsc_logger.info("Energy monitor cron started.")
+
+    em_ctrl = _get_em_controller(app_config)
+    if em_ctrl is None:
+        tsc_logger.error("Could not initialise EM controller — monitor cron exiting.")
+        return
+
+    sleep_tick = 1
     check_interval = 15
-    time_to_check_power_consumption = check_interval
+    countdown = check_interval
 
     while not stop_event.is_set():
-        if time_to_check_power_consumption <= 0:
-            _check_power_consumption()
-            time_to_check_power_consumption = check_interval
-        # wait is better than sleep → responds to stop_event quickly
-        stop_event.wait(sleep_time)
-        time_to_check_power_consumption -= sleep_time
+        if countdown <= 0:
+            try:
+                _check_power_consumption(em_ctrl, app_config)
+            except Exception as exc:
+                tsc_logger.error("Unhandled error in energy monitor poll: %s", exc)
+            countdown = check_interval
+        stop_event.wait(sleep_tick)
+        countdown -= sleep_tick
 
-    tsc_logger.info("Monitoring stopped!")
+    tsc_logger.info("Energy monitor cron stopped.")
