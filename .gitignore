@@ -16,6 +16,10 @@ eggs/
 .eggs/
 lib/
 lib64/
+# The Python-oriented "lib/" ignore above must not swallow the dashboard's
+# TypeScript source directory (dashboard/src/lib), or the frontend won't build
+# from a fresh clone.
+!dashboard/src/lib/
 parts/
 sdist/
 var/

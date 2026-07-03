@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Zap } from 'lucide-react'
@@ -53,24 +53,12 @@ export interface WizardState {
 
 const TOTAL_STEPS = 10
 
-const STEP_LABELS = [
-  'Welcome',
-  'Region & Voltage',
-  'Tesla App',
-  'Authorize',
-  'Select Vehicles',
-  'Charger Settings',
-  'Energy Monitor',
-  'Circuit & Strategy',
-  'Security',
-  'Done',
-]
+// Persist wizard progress so a page reload (or a transient backend/proxy error)
+// doesn't drop the user back to step 1. Cleared when onboarding completes.
+const STORAGE_KEY = 'tsc.onboarding.v2'
 
-export default function OnboardingPage() {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [step, setStep] = useState(1)
-  const [state, setState] = useState<WizardState>({
+function defaultState(): WizardState {
+  return {
     region: 'eu',
     voltage: 230,
     clientId: '',
@@ -89,7 +77,52 @@ export default function OnboardingPage() {
     authEnabled: false,
     authUsername: '',
     authPassword: '',
-  })
+  }
+}
+
+function loadPersisted(): { step: number; state: WizardState } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (typeof parsed?.step !== 'number' || typeof parsed?.state !== 'object') {
+      return null
+    }
+    // Merge onto defaults so newly-added fields are always present
+    return { step: parsed.step, state: { ...defaultState(), ...parsed.state } }
+  } catch {
+    return null
+  }
+}
+
+const STEP_LABELS = [
+  'Welcome',
+  'Region & Voltage',
+  'Tesla App',
+  'Authorize',
+  'Select Vehicles',
+  'Charger Settings',
+  'Energy Monitor',
+  'Circuit & Strategy',
+  'Security',
+  'Done',
+]
+
+export default function OnboardingPage() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const persisted = loadPersisted()
+  const [step, setStep] = useState(persisted?.step ?? 1)
+  const [state, setState] = useState<WizardState>(persisted?.state ?? defaultState())
+
+  // Persist progress on every change so a reload restores the same step/state.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ step, state }))
+    } catch {
+      /* localStorage unavailable or full — non-fatal */
+    }
+  }, [step, state])
 
   const update = (patch: Partial<WizardState>) =>
     setState((prev) => ({ ...prev, ...patch }))
@@ -98,6 +131,12 @@ export default function OnboardingPage() {
   const back = () => setStep((s) => Math.max(s - 1, 1))
 
   const finish = () => {
+    // Onboarding is complete — drop the persisted draft (incl. any tokens).
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      /* ignore */
+    }
     queryClient.invalidateQueries({ queryKey: ['status'] })
     navigate('/')
   }

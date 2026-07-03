@@ -151,20 +151,33 @@ def _apply_proportional(
     """
     Reduce each charging vehicle proportionally to clear the overload.
 
+    The total excess (``em_amps - home_max_amps``) is distributed across the
+    charging vehicles in proportion to how much each is currently drawing, then
+    clamped to each vehicle's [min, max] range.
+
     Returns True if at least one vehicle's limit was changed.
     """
     if not charging:
         return False
+
+    excess = em_amps - home_max_amps
+    if excess <= 0:
+        return False
+
+    total_current = sum(
+        float(d["charge_state"]["charger_actual_current"]) for _, _, d in charging
+    )
+    if total_current <= 0:
+        return False
+
     changed = False
-    num = len(charging)
     for vehicle, api, data in charging:
         current = float(data["charge_state"]["charger_actual_current"])
-        new_limit = _calculate_new_charge_limit(
-            current,
-            em_amps,
-            vehicle.chargerMaxAmps,
-            vehicle.chargerMinAmps,
-            home_max_amps / num,  # each vehicle "owns" a slice of the budget
+        # This vehicle absorbs a share of the excess proportional to its draw
+        reduction = excess * (current / total_current)
+        new_limit = math.floor(current - reduction)
+        new_limit = max(
+            int(vehicle.chargerMinAmps), min(new_limit, int(vehicle.chargerMaxAmps))
         )
         if new_limit != math.floor(current):
             try:
@@ -199,6 +212,9 @@ def _apply_priority(
         current = float(data["charge_state"]["charger_actual_current"])
         # How much can we reduce this vehicle?
         reducible = current - vehicle.chargerMinAmps
+        if reducible <= 0:
+            # Already at or below its minimum — nothing to give here
+            continue
         reduction = min(reducible, remaining_excess)
         new_limit = math.floor(current - reduction)
         new_limit = max(int(vehicle.chargerMinAmps), new_limit)

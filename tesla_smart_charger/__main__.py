@@ -102,10 +102,14 @@ async def lifespan(application: FastAPI):  # noqa: ARG001
 # ─── FastAPI application ───────────────────────────────────────────────────────
 
 app = FastAPI(title="Tesla Smart Charger", version="2.0.0", lifespan=lifespan)
+# A wildcard origin ("*") is incompatible with allow_credentials=True — browsers
+# reject credentialed responses that echo "*". Only enable credentials when the
+# origins are explicitly listed.
+_cors_origins = app_config.system.corsOrigins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=app_config.system.corsOrigins,
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials="*" not in _cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

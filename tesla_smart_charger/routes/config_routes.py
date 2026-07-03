@@ -36,6 +36,7 @@ class SystemConfigUpdate(BaseModel):
     overloadStrategy: Optional[OverloadStrategy] = None
     hostIp: Optional[str] = None
     apiPort: Optional[int] = None
+    configured: Optional[bool] = None
 
 
 @router.get("/config")
