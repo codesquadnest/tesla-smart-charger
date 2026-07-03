@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import secrets
+import threading
 import time
 import urllib.parse
 from typing import Any, Dict, Optional
@@ -34,13 +35,37 @@ router = APIRouter(tags=["auth"])
 _app_config: Optional[AppConfig] = None
 
 # In-memory PKCE state store: state_token → {code_verifier, vehicle_id, expires_at}
+# Guarded by _oauth_sessions_lock — concurrent /auth/start and /auth/callback
+# requests run in FastAPI's threadpool and mutate this dict.
 _oauth_sessions: Dict[str, Dict[str, Any]] = {}
+_oauth_sessions_lock = threading.Lock()
 SESSION_TTL = 600  # 10 minutes
+
+# Schemes allowed for the user-supplied tesla-http-proxy URL. Anything else
+# (file:, gopher:, etc.) is rejected to limit SSRF surface.
+_ALLOWED_PROXY_SCHEMES = ("http", "https")
 
 
 def init(app_config: AppConfig) -> None:
     global _app_config
     _app_config = app_config
+
+
+def _validate_proxy_url(proxy_url: str) -> None:
+    """
+    Reject obviously unsafe proxy URLs before they are used to build outbound,
+    token-bearing requests. Requires an http/https scheme and a host.
+
+    Note: this is a guard, not a full SSRF allowlist. Because this is a
+    self-hosted app where the operator points at their own tesla-http-proxy,
+    the host itself is intentionally not allowlisted.
+    """
+    parsed = urllib.parse.urlparse(proxy_url)
+    if parsed.scheme not in _ALLOWED_PROXY_SCHEMES or not parsed.hostname:
+        raise HTTPException(
+            status_code=400,
+            detail="proxy_url must be an http(s) URL with a host.",
+        )
 
 
 def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str] = None) -> str:
@@ -53,9 +78,12 @@ def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str
     in the page; the page then relays it to the wizard and closes.
     """
     if error:
-        msg = json.dumps({"type": "tesla-auth-callback", "error": error})
+        msg_obj = {"type": "tesla-auth-callback", "error": error}
     else:
-        msg = json.dumps({**(payload or {}), "type": "tesla-auth-callback"})
+        msg_obj = {**(payload or {}), "type": "tesla-auth-callback"}
+    # Escape "</" so a value containing "</script>" (e.g. a vehicle name) can't
+    # break out of the inline <script> block.
+    msg = json.dumps(msg_obj).replace("</", "<\\/")
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -118,9 +146,10 @@ def _generate_code_challenge(verifier: str) -> str:
 
 def _clean_expired_sessions() -> None:
     now = time.time()
-    expired = [k for k, v in _oauth_sessions.items() if v["expires_at"] < now]
-    for k in expired:
-        del _oauth_sessions[k]
+    with _oauth_sessions_lock:
+        expired = [k for k, v in _oauth_sessions.items() if v["expires_at"] < now]
+        for k in expired:
+            del _oauth_sessions[k]
 
 
 # ─── OAuth flow ────────────────────────────────────────────────────────────────
@@ -138,19 +167,21 @@ def auth_start(
     The caller should redirect the user's browser to the returned ``auth_url``.
     """
     _clean_expired_sessions()
+    _validate_proxy_url(proxy_url)
 
     state = secrets.token_urlsafe(32)
     code_verifier = _generate_code_verifier()
     code_challenge = _generate_code_challenge(code_verifier)
 
-    _oauth_sessions[state] = {
-        "code_verifier": code_verifier,
-        "client_id": client_id,
-        "redirect_uri": redirect_uri,
-        "proxy_url": proxy_url,
-        "region": region,
-        "expires_at": time.time() + SESSION_TTL,
-    }
+    with _oauth_sessions_lock:
+        _oauth_sessions[state] = {
+            "code_verifier": code_verifier,
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "proxy_url": proxy_url,
+            "region": region,
+            "expires_at": time.time() + SESSION_TTL,
+        }
 
     params = {
         "client_id": client_id,
@@ -178,7 +209,8 @@ def auth_callback(
     HTML page that posts the result to the opener window (the onboarding
     wizard) via ``window.postMessage`` and closes itself.
     """
-    session = _oauth_sessions.pop(state, None)
+    with _oauth_sessions_lock:
+        session = _oauth_sessions.pop(state, None)
     if session is None:
         return HTMLResponse(_callback_html(error="Invalid or expired OAuth state."))
     if time.time() > session["expires_at"]:
@@ -241,21 +273,27 @@ def auth_callback(
     return HTMLResponse(_callback_html(payload=payload))
 
 
-@router.get("/auth/vehicles")
-def list_oauth_vehicles(
-    access_token: str = Query(...),
-    proxy_url: str = Query(...),
-) -> JSONResponse:
+class OAuthVehiclesBody(BaseModel):
+    access_token: str
+    proxy_url: str
+
+
+@router.post("/auth/vehicles")
+def list_oauth_vehicles(body: OAuthVehiclesBody) -> JSONResponse:
     """
     Return the list of Tesla vehicles accessible with the provided token.
     Used during onboarding to let the user pick vehicles to manage.
+
+    Credentials are sent in the request body (never the query string) to avoid
+    leaking the access token into access logs / proxy caches.
     """
     from tesla_smart_charger.models import VehicleConfig
     from tesla_smart_charger.tesla_api import TeslaAPI
 
+    _validate_proxy_url(body.proxy_url)
     tmp_vehicle = VehicleConfig(
-        teslaAccessToken=access_token,
-        teslaHttpProxy=proxy_url,
+        teslaAccessToken=body.access_token,
+        teslaHttpProxy=body.proxy_url,
     )
     try:
         api = TeslaAPI(tmp_vehicle)
@@ -274,6 +312,7 @@ class AuthSetupBody(BaseModel):
 
 
 class AuthVerifyBody(BaseModel):
+    username: str
     password: str
 
 
@@ -319,7 +358,7 @@ def setup_auth(body: AuthSetupBody) -> JSONResponse:
 
 
 @router.post("/api/v1/auth/verify")
-def verify_auth(body: AuthVerifyBody, username: str = Query(...)) -> JSONResponse:
+def verify_auth(body: AuthVerifyBody) -> JSONResponse:
     """Verify a username/password against the stored hash. Returns 200 or 401."""
     if _app_config is None:
         raise HTTPException(status_code=503, detail="Not initialised")
@@ -327,7 +366,7 @@ def verify_auth(body: AuthVerifyBody, username: str = Query(...)) -> JSONRespons
     if not auth.enabled:
         return JSONResponse({"valid": True}, status_code=200)
     valid = (
-        username == auth.username
+        body.username == auth.username
         and bool(auth.passwordHash)
         and _check_password(body.password, auth.passwordHash)
     )

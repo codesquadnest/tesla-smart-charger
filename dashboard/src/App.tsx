@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useStatus } from '@/hooks/useStatus'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { FullPageSpinner } from '@/components/ui/Spinner'
+import { Alert } from '@/components/ui/Alert'
 import OnboardingPage from '@/pages/Onboarding/index'
 import DashboardPage from '@/pages/Dashboard/index'
 import VehiclesPage from '@/pages/Vehicles/index'
@@ -19,12 +20,28 @@ const queryClient = new QueryClient({
 })
 
 function AppRoutes() {
-  const { data: status, isLoading } = useStatus()
+  const { data: status, isLoading, error } = useStatus()
 
   if (isLoading) return <FullPageSpinner />
 
+  // If status can't be fetched (transient outage), don't assume "not configured"
+  // and force already-configured users into setup — show an error instead.
+  if (!status) {
+    if (error) {
+      return (
+        <div className="p-8">
+          <Alert type="error">
+            Could not load system status. Retrying… setup routing is paused until
+            status can be verified.
+          </Alert>
+        </div>
+      )
+    }
+    return <FullPageSpinner />
+  }
+
   // If not configured yet, show the onboarding wizard
-  if (!status?.configured) {
+  if (status.configured === false) {
     return (
       <Routes>
         <Route path="/onboarding" element={<OnboardingPage />} />

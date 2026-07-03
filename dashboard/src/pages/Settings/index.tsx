@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useConfig, useUpdateConfig } from '@/hooks/useConfig'
+import { toNum } from '@/lib/utils'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -74,7 +76,7 @@ function SystemSection({ config }: { config: SystemConfig }) {
             label="Grid voltage (V)"
             type="number"
             value={form.voltage}
-            onChange={(e) => setForm((f) => ({ ...f, voltage: Number(e.target.value) }))}
+            onChange={(e) => setForm((f) => ({ ...f, voltage: toNum(e.target.valueAsNumber, f.voltage) }))}
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -87,7 +89,7 @@ function SystemSection({ config }: { config: SystemConfig }) {
             label="API port"
             type="number"
             value={form.apiPort}
-            onChange={(e) => setForm((f) => ({ ...f, apiPort: Number(e.target.value) }))}
+            onChange={(e) => setForm((f) => ({ ...f, apiPort: toNum(e.target.valueAsNumber, f.apiPort) }))}
           />
         </div>
       </div>
@@ -163,7 +165,7 @@ function CircuitSection({ config }: { config: SystemConfig }) {
           label="Home max amps (A)"
           type="number"
           value={form.homeMaxAmps}
-          onChange={(e) => setForm((f) => ({ ...f, homeMaxAmps: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, homeMaxAmps: toNum(e.target.valueAsNumber, f.homeMaxAmps) }))}
         />
         <Select
           label="Overload strategy"
@@ -180,7 +182,7 @@ function CircuitSection({ config }: { config: SystemConfig }) {
           label="Sleep time (seconds)"
           type="number"
           value={form.sleepTimeSecs}
-          onChange={(e) => setForm((f) => ({ ...f, sleepTimeSecs: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, sleepTimeSecs: toNum(e.target.valueAsNumber, f.sleepTimeSecs) }))}
         />
         <Input
           label="Down step multiplier"
@@ -189,7 +191,7 @@ function CircuitSection({ config }: { config: SystemConfig }) {
           min={0.1}
           max={1}
           value={form.downStepPercentage}
-          onChange={(e) => setForm((f) => ({ ...f, downStepPercentage: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, downStepPercentage: toNum(e.target.valueAsNumber, f.downStepPercentage) }))}
         />
       </div>
       <SaveRow saving={update.isPending} saved={saved} onSave={save} error={update.error} />
@@ -198,6 +200,7 @@ function CircuitSection({ config }: { config: SystemConfig }) {
 }
 
 function SecuritySection({ config }: { config: SystemConfig }) {
+  const qc = useQueryClient()
   const [mode, setMode] = useState<'view' | 'edit'>('view')
   const [form, setForm] = useState({
     enabled: config.auth.enabled,
@@ -213,6 +216,9 @@ function SecuritySection({ config }: { config: SystemConfig }) {
     setError('')
     try {
       await authApi.setupBasicAuth(form)
+      // Refresh config so the Security view reflects the new auth state.
+      await qc.invalidateQueries({ queryKey: ['config'] })
+      await qc.invalidateQueries({ queryKey: ['status'] })
       setSaved(true)
       setMode('view')
       setTimeout(() => setSaved(false), 2000)

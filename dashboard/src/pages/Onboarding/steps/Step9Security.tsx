@@ -48,16 +48,17 @@ export function Step9Security({ state, update, next, back }: Props) {
             <Input
               label="Username"
               value={state.authUsername}
-              onChange={(e) => update({ authUsername: e.target.value })}
+              onChange={(e) => update({ authUsername: e.target.value.trim() })}
             />
             <Input
               label="Password"
               type="password"
               value={state.authPassword}
-              onChange={(e) => update({ authPassword: e.target.value })}
+              onChange={(e) => update({ authPassword: e.target.value.trim() })}
               hint="Minimum 8 characters."
               error={
-                state.authPassword.length > 0 && state.authPassword.length < 8
+                state.authPassword.trim().length > 0 &&
+                state.authPassword.trim().length < 8
                   ? 'Password must be at least 8 characters.'
                   : undefined
               }

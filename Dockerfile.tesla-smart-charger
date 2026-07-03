@@ -45,6 +45,11 @@ ENV TESLA_CERTS_DIR=/app/certs
 
 WORKDIR /app
 
+# Run as a non-root user. NOTE: bind-mounted volumes (./config, ./data) must be
+# writable by this user — chown them on the host, or set `user:` in compose to a
+# matching UID, otherwise config/db writes will fail.
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 COPY --from=python-builder /app/dist /app/dist
 COPY --from=python-builder /app/tesla_smart_charger /app/tesla_smart_charger
 COPY --from=python-builder /app/certs $TESLA_CERTS_DIR
@@ -53,7 +58,11 @@ COPY --from=dashboard-builder /dashboard/dist /app/dashboard/dist
 
 EXPOSE ${API_PORT}
 
-RUN pip install --no-cache-dir /app/dist/*.whl
+RUN pip install --no-cache-dir /app/dist/*.whl \
+    && mkdir -p /app/config /app/data \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 # --monitor activates the energy monitor polling cron
 CMD ["tesla-smart-charger", "--monitor", "--verbose"]

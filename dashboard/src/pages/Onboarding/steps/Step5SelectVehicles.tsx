@@ -33,6 +33,8 @@ export function Step5SelectVehicles({ state, update, next, back }: Props) {
     }
   }
 
+  // Fetch once on mount. The access token is obtained in the previous step and
+  // does not change while this step is shown, so there's nothing to re-fetch on.
   useEffect(() => {
     if (state.accessToken) fetchVehicles()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

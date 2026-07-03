@@ -3,6 +3,7 @@ import type { WizardState } from '../index'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Alert } from '@/components/ui/Alert'
+import { isValidHost } from '@/lib/utils'
 import { CheckCircle } from 'lucide-react'
 
 interface Props {
@@ -19,13 +20,18 @@ export function Step7EnergyMonitor({ state, update, next, back }: Props) {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<'ok' | 'fail' | null>(null)
 
-  const canContinue = state.energyMonitorIp.trim().length > 0
+  const canContinue = isValidHost(state.energyMonitorIp)
 
   const testConnection = async () => {
+    const ip = state.energyMonitorIp.trim()
+    if (!isValidHost(ip)) {
+      setTestResult('fail')
+      return
+    }
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await fetch(`http://${state.energyMonitorIp}/status/`, {
+      const res = await fetch(`http://${ip}/status/`, {
         signal: AbortSignal.timeout(5000),
       })
       setTestResult(res.ok ? 'ok' : 'fail')

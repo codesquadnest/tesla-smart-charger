@@ -184,5 +184,6 @@ config.json
 *.db
 data/
 
-# TLS private key (public key is safe to commit)
+# Private keys — never commit (public-key.pem / tls-cert.pem are safe)
 certs/private-key.pem
+certs/tls-key.pem

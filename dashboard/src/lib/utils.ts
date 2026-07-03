@@ -4,6 +4,28 @@ export function cn(...classes: Array<string | false | null | undefined>): string
 }
 
 /**
+ * Resolve a numeric <input>'s value, keeping the previous value when the field
+ * is empty/invalid. Prevents clearing an input from silently writing 0.
+ */
+export function toNum(valueAsNumber: number, prev: number): number {
+  return Number.isNaN(valueAsNumber) ? prev : valueAsNumber
+}
+
+/**
+ * Validate that a string is a usable host for a local fetch — an IPv4 address
+ * or a hostname, with no scheme, port, path, or credentials. Used to sanitise
+ * the energy-monitor address before probing it.
+ */
+export function isValidHost(value: string): boolean {
+  const host = value.trim()
+  if (!host || /[/\\@?#\s]/.test(host) || host.includes(':')) return false
+  const ipv4 =
+    /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d?\d)$/
+  const hostname = /^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63})*$/
+  return ipv4.test(host) || hostname.test(host)
+}
+
+/**
  * Format a backend timestamp ("YYYY-MM-DD HH:MM:SS", local time) for display.
  * Returns "—" for empty values and the raw string if it can't be parsed.
  */

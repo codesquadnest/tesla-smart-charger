@@ -172,6 +172,11 @@ def serve_index() -> FileResponse:
 def spa_catch_all(full_path: str) -> FileResponse:
     """Catch-all for React Router client-side navigation."""
     static_file = DASHBOARD_DIST / full_path
+    # Prevent path traversal: only serve files that resolve inside DASHBOARD_DIST.
+    try:
+        static_file.resolve().relative_to(DASHBOARD_DIST.resolve())
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found") from None
     if static_file.is_file():
         return FileResponse(str(static_file))
     index_path = DASHBOARD_DIST / "index.html"

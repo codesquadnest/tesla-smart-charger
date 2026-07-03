@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { Plus, Trash2, Edit2, X, Save, Car } from 'lucide-react'
+import { toNum } from '@/lib/utils'
 import type { Vehicle } from '@/lib/types'
 
 export default function VehiclesPage() {
@@ -170,21 +171,21 @@ function EditVehicleForm({
           type="number"
           min={1}
           value={form.priority}
-          onChange={(e) => setForm((f) => ({ ...f, priority: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, priority: toNum(e.target.valueAsNumber, f.priority) }))}
         />
         <Input
           label="Max amps (A)"
           type="number"
           min={1}
           value={form.chargerMaxAmps}
-          onChange={(e) => setForm((f) => ({ ...f, chargerMaxAmps: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, chargerMaxAmps: toNum(e.target.valueAsNumber, f.chargerMaxAmps) }))}
         />
         <Input
           label="Min amps (A)"
           type="number"
           min={1}
           value={form.chargerMinAmps}
-          onChange={(e) => setForm((f) => ({ ...f, chargerMinAmps: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, chargerMinAmps: toNum(e.target.valueAsNumber, f.chargerMinAmps) }))}
         />
       </div>
       <label className="flex items-center gap-2 mt-4 text-sm cursor-pointer">
@@ -292,13 +293,13 @@ function AddVehicleForm({ onClose }: { onClose: () => void }) {
           label="Max amps"
           type="number"
           value={form.chargerMaxAmps}
-          onChange={(e) => setForm((f) => ({ ...f, chargerMaxAmps: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, chargerMaxAmps: toNum(e.target.valueAsNumber, f.chargerMaxAmps) }))}
         />
         <Input
           label="Min amps"
           type="number"
           value={form.chargerMinAmps}
-          onChange={(e) => setForm((f) => ({ ...f, chargerMinAmps: Number(e.target.value) }))}
+          onChange={(e) => setForm((f) => ({ ...f, chargerMinAmps: toNum(e.target.valueAsNumber, f.chargerMinAmps) }))}
         />
       </div>
       <div className="flex gap-3 mt-4">

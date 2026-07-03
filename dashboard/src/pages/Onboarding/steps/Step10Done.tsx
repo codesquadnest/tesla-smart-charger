@@ -25,7 +25,9 @@ export function Step10Done({ state, back, finish }: Props) {
     setSaving(true)
     setError('')
     try {
-      // 1. Save system config
+      // 1. Save system config (but DON'T mark configured yet — only after all
+      //    writes below succeed, so a mid-way failure doesn't leave onboarding
+      //    marked complete with partial data).
       await configApi.update({
         homeMaxAmps: state.homeMaxAmps,
         voltage: state.voltage,
@@ -35,8 +37,7 @@ export function Step10Done({ state, back, finish }: Props) {
         sleepTimeSecs: state.sleepTimeSecs,
         downStepPercentage: state.downStepPercentage,
         overloadStrategy: state.overloadStrategy as 'proportional' | 'priority',
-        configured: true,
-      } as Parameters<typeof configApi.update>[0])
+      })
 
       // 2. Add each selected vehicle
       for (const [idx, v] of state.selectedTeslaVehicles.entries()) {
@@ -67,6 +68,9 @@ export function Step10Done({ state, back, finish }: Props) {
           password: state.authPassword,
         })
       }
+
+      // 4. Everything succeeded — now mark onboarding complete.
+      await configApi.update({ configured: true })
 
       setDone(true)
     } catch (e: unknown) {

@@ -277,7 +277,7 @@ def test_auth_verify_no_auth_always_valid(tmp_path: Path) -> None:
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
-    r = client.post("/api/v1/auth/verify?username=anyone", json={"password": "whatever"})
+    r = client.post("/api/v1/auth/verify", json={"username": "anyone", "password": "whatever"})
     assert r.status_code == 200
     assert r.json()["valid"] is True
 
@@ -290,7 +290,9 @@ def test_auth_verify_correct_credentials(tmp_path: Path) -> None:
         "/api/v1/auth/setup",
         json={"enabled": True, "username": "admin", "password": "correctpassword"},
     )
-    r = client.post("/api/v1/auth/verify?username=admin", json={"password": "correctpassword"})
+    r = client.post(
+        "/api/v1/auth/verify", json={"username": "admin", "password": "correctpassword"}
+    )
     assert r.status_code == 200
     assert r.json()["valid"] is True
 
@@ -303,7 +305,9 @@ def test_auth_verify_wrong_password_returns_401(tmp_path: Path) -> None:
         "/api/v1/auth/setup",
         json={"enabled": True, "username": "admin", "password": "correctpassword"},
     )
-    r = client.post("/api/v1/auth/verify?username=admin", json={"password": "wrongpassword"})
+    r = client.post(
+        "/api/v1/auth/verify", json={"username": "admin", "password": "wrongpassword"}
+    )
     assert r.status_code == 401
 
 

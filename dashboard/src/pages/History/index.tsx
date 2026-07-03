@@ -15,22 +15,44 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { formatDuration, formatDateTime } from '@/lib/utils'
+import { formatDuration, formatDateTime, toNum } from '@/lib/utils'
 import type { OverloadEvent } from '@/lib/types'
 
+const DEFAULT_LIMIT = 50
+
 export default function HistoryPage() {
+  // Draft filter inputs (edited freely; only sent to the API when "Apply" is clicked)
   const [vehicleFilter, setVehicleFilter] = useState('')
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
-  const [limit, setLimit] = useState(50)
+  const [fromDate, setFromDate] = useState('') // YYYY-MM-DD
+  const [toDate, setToDate] = useState('') // YYYY-MM-DD
+  const [limit, setLimit] = useState(DEFAULT_LIMIT)
+
+  // Applied filters — the actual query. Updated only on Apply/Reset.
+  const [appliedFilters, setAppliedFilters] = useState({
+    limit: DEFAULT_LIMIT,
+    vehicle_id: '',
+    from_date: '',
+    to_date: '',
+  })
+
+  const applyFilters = () =>
+    setAppliedFilters({
+      limit,
+      vehicle_id: vehicleFilter,
+      from_date: fromDate ? `${fromDate} 00:00:00` : '',
+      to_date: toDate ? `${toDate} 23:59:59` : '',
+    })
+
+  const resetFilters = () => {
+    setVehicleFilter('')
+    setFromDate('')
+    setToDate('')
+    setLimit(DEFAULT_LIMIT)
+    setAppliedFilters({ limit: DEFAULT_LIMIT, vehicle_id: '', from_date: '', to_date: '' })
+  }
 
   const { data: vehicles = [] } = useVehicles()
-  const { data, isLoading, error, refetch } = useHistory({
-    limit,
-    vehicle_id: vehicleFilter,
-    from_date: fromDate,
-    to_date: toDate,
-  })
+  const { data, isLoading, error } = useHistory(appliedFilters)
 
   const events: OverloadEvent[] = data?.data ?? []
 
@@ -70,13 +92,13 @@ export default function HistoryPage() {
             label="From date"
             type="date"
             value={fromDate}
-            onChange={(e) => setFromDate(e.target.value ? `${e.target.value} 00:00:00` : '')}
+            onChange={(e) => setFromDate(e.target.value)}
           />
           <Input
             label="To date"
             type="date"
             value={toDate}
-            onChange={(e) => setToDate(e.target.value ? `${e.target.value} 23:59:59` : '')}
+            onChange={(e) => setToDate(e.target.value)}
           />
           <Input
             label="Limit"
@@ -84,20 +106,12 @@ export default function HistoryPage() {
             min={1}
             max={500}
             value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
+            onChange={(e) => setLimit(toNum(e.target.valueAsNumber, limit))}
           />
         </div>
         <div className="flex gap-3 mt-4">
-          <Button onClick={() => refetch()}>Apply filters</Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setVehicleFilter('')
-              setFromDate('')
-              setToDate('')
-              setLimit(50)
-            }}
-          >
+          <Button onClick={applyFilters}>Apply filters</Button>
+          <Button variant="secondary" onClick={resetFilters}>
             Reset
           </Button>
         </div>

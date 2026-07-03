@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import type { InputHTMLAttributes } from 'react'
+import type { InputHTMLAttributes, SelectHTMLAttributes } from 'react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -31,7 +31,7 @@ export function Input({ label, error, hint, className, id, ...props }: InputProp
   )
 }
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
   options: { value: string; label: string }[]

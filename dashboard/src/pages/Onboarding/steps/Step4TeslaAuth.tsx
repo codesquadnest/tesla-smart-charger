@@ -35,10 +35,30 @@ export function Step4TeslaAuth({ state, update, next, back }: Props) {
         'tesla-auth',
         'width=600,height=700,scrollbars=yes'
       )
+      if (!popup) {
+        setError('Popup blocked by browser. Please allow popups and try again.')
+        setLoading(false)
+        return
+      }
 
-      // Listen for the callback result
+      // The callback page is served from our own origin (redirectUri).
+      const expectedOrigin = new URL(state.redirectUri).origin
+
+      // Reset loading if the user closes the popup without completing.
+      const closedTimer = window.setInterval(() => {
+        if (popup.closed) {
+          window.clearInterval(closedTimer)
+          window.removeEventListener('message', handler)
+          setLoading(false)
+        }
+      }, 500)
+
+      // Listen for the callback result — only trust messages from our popup/origin.
       const handler = (event: MessageEvent) => {
+        if (event.source !== popup) return
+        if (event.origin !== expectedOrigin) return
         if (event.data?.type === 'tesla-auth-callback') {
+          window.clearInterval(closedTimer)
           window.removeEventListener('message', handler)
           const { access_token, refresh_token } = event.data
           if (access_token && refresh_token) {
@@ -46,13 +66,14 @@ export function Step4TeslaAuth({ state, update, next, back }: Props) {
           } else {
             setError('Authorization failed — no tokens received.')
           }
-          popup?.close()
+          popup.close()
+          setLoading(false)
         }
       }
       window.addEventListener('message', handler)
+      // Keep `loading` true until the callback fires or the popup closes.
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to start authorization.')
-    } finally {
       setLoading(false)
     }
   }
