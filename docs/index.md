@@ -1,9 +1,27 @@
 # Tesla Smart Charger Documentation
 
-Dynamic charging control for your Tesla using the default charger and the Tesla API.
+Dynamic charging control for one or more Tesla vehicles, using the built-in
+charger and the Tesla Fleet API.
 
 ## What is the Tesla Smart Charger?
 
-The Tesla Smart Charger is a Python application that allows you to dynamically control the charging of your Tesla vehicle using the Tesla API. The application is designed to be run on a local server, such as a Raspberry Pi, and can be configured to automatically adjust the charging rate of your Tesla based on the current electricity consumption of your home.
+Tesla Smart Charger is a Python application that dynamically controls the
+charging of your Tesla vehicles based on your home's live power consumption.
+It runs on a local server (such as a Raspberry Pi) and throttles charging when
+your home approaches its circuit limit, so you never trip the main breaker.
 
-Please check the [Quick-Start](quick-start.md) guide for more information on how to get started with the Tesla Smart Charger.
+**v2 highlights:**
+
+- **Multi-vehicle** — manage several Teslas from one installation, each with its
+  own charge limits and priority.
+- **Guided onboarding** — a 10-step wizard (OAuth 2.0 + PKCE) replaces manual
+  JSON editing; no `config.json` to hand-write.
+- **React dashboard** — live status, per-vehicle controls, overload history, and
+  settings.
+- **Overload strategies** — reduce charging **proportionally** across vehicles
+  or by **priority** order.
+
+## Getting started
+
+- New install → [Quick start](quick-start.md)
+- Upgrading from v1 → [Migrating v1 → v2](migration.md)

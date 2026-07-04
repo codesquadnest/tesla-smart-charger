@@ -7,13 +7,35 @@
 [![Deploy Documentation](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/docs.yml/badge.svg)](https://github.com/codesquadnest/tesla-smart-charger/actions/workflows/docs.yml)
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/codesquadnest/tesla-smart-charger)
 
-Dynamic charging control for your Tesla using the default charger and the Tesla API.
+Dynamic charging control for one or more Tesla vehicles, using the built-in charger and the Tesla Fleet API.
 
 [Official Documentation Page](https://codesquadnest.github.io/tesla-smart-charger/)
 
 ## What is the Tesla Smart Charger?
 
-The Tesla Smart Charger is a Python application that allows you to dynamically control the charging of your Tesla vehicle using the Tesla API. The application is designed to be run on a local server, such as a Raspberry Pi, and can be configured to automatically adjust the charging rate of your Tesla based on the current electricity consumption of your home.
+The Tesla Smart Charger is a Python application that dynamically controls the charging of your Tesla vehicles based on your home's live power consumption. It runs on a local server, such as a Raspberry Pi, and throttles charging when your home approaches its circuit limit — so you never trip the main breaker.
+
+## Features (v2)
+
+- **Multi-vehicle** — manage several Teslas from one install, each with its own charge limits and priority.
+- **Guided onboarding** — a 10-step OAuth 2.0 + PKCE wizard; no manual `config.json` editing.
+- **React dashboard** — live status, per-vehicle controls, overload history, and settings.
+- **Overload strategies** — reduce charging **proportionally** across vehicles or by **priority** order.
+
+## Getting started
+
+- **New install:** follow the [Quick start](https://codesquadnest.github.io/tesla-smart-charger/quick-start.html) guide.
+- **Upgrading from v1:** follow the [Migration guide](docs/migration.md).
+
+In short:
+
+```sh
+git clone https://github.com/codesquadnest/tesla-smart-charger.git
+cd tesla-smart-charger
+# Generate certs into certs/ (see the Quick start), then:
+docker compose up --build -d
+# Open the dashboard at http://<server-ip>:8000 and follow the onboarding wizard.
+```
 
 ## How to Contribute
 

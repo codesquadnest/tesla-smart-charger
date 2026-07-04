@@ -1,0 +1,59 @@
+# Example development override.
+#
+# `docker-compose.override.yml` is git-ignored (developer-specific), so this
+# committed template is the shareable starting point. To use it:
+#
+#     cp docker-compose.override.example.yml docker-compose.override.yml
+#     docker compose up          # the override is merged automatically
+#
+# It turns the production stack into a live-reload dev stack:
+#   * backend   — uvicorn --reload against the mounted source (http://localhost:8000)
+#   * dashboard — Vite dev server with HMR              (http://localhost:5173)
+#
+# The tesla-http-proxy is behind the "proxy" profile, so it is NOT started by
+# default — you can develop the UI and onboarding (Steps 1-4) with no TLS/vehicle
+# certs at all:
+#
+#     docker compose up                    # backend + dashboard only, no certs needed
+#     docker compose --profile proxy up    # also start the proxy (needs certs in ./certs)
+#
+# NOTE: the energy-monitor cron (--monitor) is intentionally NOT run here; this
+# stack targets UI / onboarding development. Use the production image (plain
+# `docker compose -f docker-compose.yaml up`) to exercise the monitor.
+
+services:
+  # Opt-in: only started with `docker compose --profile proxy up`.
+  tesla-http-proxy:
+    profiles: ["proxy"]
+
+  tesla-smart-charger:
+    # The base service depends on tesla-http-proxy; drop that in dev so the
+    # backend starts without the (profiled) proxy. Requires Compose >= 2.24.
+    depends_on: !reset []
+    # Import the app from the mounted source (wins over the installed wheel).
+    environment:
+      - PYTHONPATH=/app
+    command:
+      ["python", "-m", "uvicorn", "tesla_smart_charger.__main__:app",
+       "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./tesla_smart_charger:/app/tesla_smart_charger
+
+  dashboard:
+    image: node:22-alpine
+    working_dir: /dashboard
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      # Inside Docker, localhost would be the dashboard container itself — point
+      # Vite's proxy at the backend service instead.
+      - VITE_API_PROXY_TARGET=http://tesla-smart-charger:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./dashboard:/dashboard
+      - dashboard_node_modules:/dashboard/node_modules
+    depends_on:
+      - tesla-smart-charger
+
+volumes:
+  dashboard_node_modules:

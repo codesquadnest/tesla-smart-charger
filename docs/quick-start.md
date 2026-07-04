@@ -87,10 +87,10 @@ curl -s -X POST \
 ### 1.4 Generate a TLS certificate for the HTTP proxy
 
 The `tesla-http-proxy` sidecar needs a self-signed certificate.  Replace
-`$HTTPS_PROXY` with the LAN IP of your server.
+`$PROXY_IP` with the LAN IP of your server.
 
 ```bash
-export HTTPS_PROXY=127.0.0.1
+export PROXY_IP=127.0.0.1
 
 openssl req -x509 -nodes -newkey ec \
   -pkeyopt ec_paramgen_curve:secp521r1 \
@@ -99,17 +99,20 @@ openssl req -x509 -nodes -newkey ec \
   -keyout certs/tls-key.pem \
   -out   certs/tls-cert.pem \
   -sha256 -days 3650 \
-  -addext "subjectAltName = DNS:localhost, IP:$HTTPS_PROXY" \
+  -addext "subjectAltName = DNS:localhost, IP:$PROXY_IP" \
   -addext "extendedKeyUsage = serverAuth" \
   -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
 ```
+
+> Avoid the name `HTTPS_PROXY` here — it is a reserved environment variable that
+> tools like `curl` interpret as a proxy to route requests through.
 
 ---
 
 ## 2. Start the stack
 
 ```bash
-git clone https://github.com/your-org/tesla-smart-charger.git
+git clone https://github.com/codesquadnest/tesla-smart-charger.git
 cd tesla-smart-charger
 
 # Make sure certs/ contains: private-key.pem, public-key.pem, tls-key.pem, tls-cert.pem
@@ -160,20 +163,18 @@ rebuilds.
 
 ## 5. Running the energy monitor
 
-The energy monitor (Shelly EM poller) is not started by default.  Pass the
-`-m` flag to enable it:
+The energy monitor (Shelly EM poller) is enabled by the `-m` / `--monitor` flag.
 
-```bash
-# If running directly with uv
-uv run tesla-smart-charger -m
+- **Docker:** it is **already enabled** — the image's default command is
+  `tesla-smart-charger --monitor --verbose`, so no action is needed.
+- **Running directly with `uv`:** pass the flag yourself:
 
-# Or override the Docker command:
-# In docker-compose.yaml, add to the tesla-smart-charger service:
-#   command: ["python", "-m", "tesla_smart_charger", "-m"]
-```
+  ```bash
+  uv run tesla-smart-charger -m
+  ```
 
-When consumption exceeds `homeMaxAmps` the monitor calls `GET /overload`
-automatically.
+When consumption exceeds `homeMaxAmps`, the monitor triggers overload handling
+directly (throttling charging vehicles); no internal HTTP call is made.
 
 ---
 
@@ -187,15 +188,30 @@ docker compose down
 
 ## 7. Local development
 
-A `docker-compose.override.yml` is included for rapid development.  It
+A `docker-compose.override.example.yml` is included for rapid development.  It
 replaces the static dashboard bundle with a live Vite dev server (port 5173)
-and runs the Python backend with `--reload`:
+and runs the Python backend with `--reload`.  Copy it to the (git-ignored)
+`docker-compose.override.yml`, which Compose then merges automatically:
 
 ```bash
-docker compose up       # picks up the override automatically
+cp docker-compose.override.example.yml docker-compose.override.yml
+docker compose up       # backend + dashboard only — no certs needed
 # Dashboard hot-reload: http://localhost:5173
 # API:                  http://localhost:8000
 ```
+
+The dev override puts `tesla-http-proxy` behind a **`proxy` profile**, so it is
+**not started by default** — you can build the UI and walk through onboarding
+Steps 1–4 with no certificates at all. When you need the proxy (Step 5 onward),
+generate certs into `certs/` (see [§1.2](#12-generate-keys) and
+[§1.4](#14-generate-a-tls-certificate-for-the-http-proxy)) and start it too:
+
+```bash
+docker compose --profile proxy up
+```
+
+> Requires Docker Compose ≥ 2.24 (for the `!reset` tag used to drop the proxy
+> dependency in dev).
 
 Or run the services separately without Docker:
 
@@ -209,5 +225,63 @@ npm install
 npm run dev             # http://localhost:5173
 ```
 
-Vite proxies `/api` and `/auth` to `http://localhost:8000`, so no CORS
-configuration is needed during development.
+Vite proxies `/api`, `/auth`, and `/overload` to the backend, so no CORS
+configuration is needed during development. The proxy target defaults to
+`http://localhost:8000` and can be overridden with the `VITE_API_PROXY_TARGET`
+environment variable — the `docker-compose.override.yml` sets it to
+`http://tesla-smart-charger:8000` so the dashboard container reaches the backend
+container (inside Docker, `localhost` would point at the dashboard container
+itself).
+
+---
+
+## 8. Troubleshooting
+
+### `tesla-http-proxy` keeps restarting — `open /app/certs/private-key.pem: no such file or directory`
+
+The proxy can't find its certificates. It needs **four** files in `certs/`:
+`private-key.pem`, `public-key.pem` (see [§1.2](#12-generate-keys)) and
+`tls-key.pem`, `tls-cert.pem` (see [§1.4](#14-generate-a-tls-certificate-for-the-http-proxy)).
+Generate all four, then `docker compose up -d tesla-http-proxy`. Certificates are
+**not** committed to the repo, so they must be generated on each host that runs
+the stack.
+
+In **dev**, you can avoid this entirely: the dev override keeps the proxy behind
+the `proxy` profile, so `docker compose up` starts backend + dashboard only (no
+certs needed). Add `--profile proxy` once you need the proxy — see
+[§7](#7-local-development).
+
+### Dashboard shows `502` / `/api/v1/status` fails, and onboarding "refreshes" every ~10s
+
+The dashboard polls `GET /api/v1/status` every 10 seconds; a `502` means the
+browser (or Vite's dev proxy) can't reach the backend on port `8000`.
+
+- **Production:** confirm the `tesla-smart-charger` container is up and healthy
+  (`docker compose ps`, `docker compose logs tesla-smart-charger`).
+- **Dev (Vite in its own container):** ensure `VITE_API_PROXY_TARGET` points at
+  the backend **service** (`http://tesla-smart-charger:8000`), not `localhost` —
+  see [§7](#7-local-development). `localhost:8000` inside the dashboard container
+  is the dashboard itself.
+
+### `GET /` returns `503 — Dashboard not built`
+
+The backend serves the compiled dashboard from `dashboard/dist/`. Build it
+(`cd dashboard && npm install && npm run build`) or use Docker, which builds it
+automatically. Without a build there is no SPA to serve.
+
+### Onboarding never finishes / keeps returning to Step 1
+
+Onboarding is only marked complete after **all** of Step 10's writes succeed
+(system config → vehicles → auth → `configured: true`). If Step 10 shows an
+error, fix that cause and re-apply — the app intentionally does not mark itself
+configured on a partial save. A transient status-fetch failure alone no longer
+forces you back into the wizard.
+
+### Tesla sign-in works but vehicle data / commands fail (proxy is up)
+
+Getting tokens (Step 4) talks to Tesla directly, but reading vehicle data and
+sending charge commands go through `tesla-http-proxy`, which requires your
+**public key to be hosted** at
+`https://<your-domain>/.well-known/appspecific/com.tesla.3p.public-key.pem` and
+your **domain registered** with the Fleet API — see
+[§1.2](#12-generate-keys) and [§1.3](#13-register-your-app-with-tesla-one-time-partner-step).

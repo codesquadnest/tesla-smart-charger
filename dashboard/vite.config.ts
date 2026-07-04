@@ -10,18 +10,22 @@ export default defineConfig({
     },
   },
   server: {
+    // Listen on all interfaces so the dev server is reachable from a container.
+    host: true,
     port: 5173,
     proxy: {
+      // Override with VITE_API_PROXY_TARGET (e.g. http://tesla-smart-charger:8000
+      // when Vite runs in its own dev container).
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
       '/auth': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
       '/overload': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000',
         changeOrigin: true,
       },
     },
