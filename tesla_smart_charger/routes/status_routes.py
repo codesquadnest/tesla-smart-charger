@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from tesla_smart_charger import logger
 from tesla_smart_charger.app_config import AppConfig
+from tesla_smart_charger.cron import em_cron
 from tesla_smart_charger.models import SystemStatus, VehicleStatus
 from tesla_smart_charger.tesla_api import TeslaAPI
 
@@ -23,8 +24,10 @@ _overload_active_fn: Optional[Callable[[], bool]] = None
 
 # ─── Per-vehicle telemetry cache ───────────────────────────────────────────────
 # Stores (timestamp, VehicleStatus) per vehicle id.  Entries are served from
-# cache until they are older than _CACHE_TTL_SECS seconds.
-_CACHE_TTL_SECS = 30
+# cache until they are older than the TTL.  Offline vehicles get a longer TTL
+# so we don't spam the Tesla API waking them up every 30 seconds.
+_CACHE_TTL_ONLINE_SECS = 30
+_CACHE_TTL_OFFLINE_SECS = 300  # 5 min
 _cache: Dict[str, tuple] = {}          # vehicle_id → (fetched_at, VehicleStatus)
 _cache_lock = threading.Lock()
 
@@ -58,13 +61,18 @@ def _live_vehicle_status(vehicle) -> VehicleStatus:
     if not vehicle.enabled or not vehicle.teslaVehicleId:
         return base
 
-    # Serve from cache when the entry is still fresh
+    # Serve from cache when the entry is still fresh.
+    # Offline vehicles get a longer TTL to avoid waking them unnecessarily.
+    # During an active overload session we use the shorter online TTL even for
+    # offline vehicles so the dashboard reflects live charge-limit changes sooner.
+    overload_active = _overload_active_fn() if callable(_overload_active_fn) else False
     now = time.monotonic()
     with _cache_lock:
         cached = _cache.get(vehicle.id)
         if cached is not None:
             fetched_at, cached_status = cached
-            if now - fetched_at < _CACHE_TTL_SECS:
+            ttl = _CACHE_TTL_ONLINE_SECS if (cached_status.online or overload_active) else _CACHE_TTL_OFFLINE_SECS
+            if now - fetched_at < ttl:
                 return cached_status
 
     # Cache miss (or stale) — fetch live data
@@ -76,8 +84,12 @@ def _live_vehicle_status(vehicle) -> VehicleStatus:
         base.chargingState = charge.get("charging_state")
         base.chargerActualCurrent = charge.get("charger_actual_current")
         base.batteryLevel = charge.get("battery_level")
-    except Exception:
-        pass  # fall back to the offline baseline
+    except Exception as exc:
+        tsc_logger.warning(
+            "Live telemetry fetch failed for vehicle %s: %s",
+            vehicle.id,
+            exc,
+        )
 
     with _cache_lock:
         _cache[vehicle.id] = (now, base)
@@ -98,6 +110,7 @@ def get_status() -> JSONResponse:
         configured=cfg.configured,
         monitorActive=_monitor_active() if callable(_monitor_active) else _monitor_active,
         overloadActive=_overload_active_fn() if callable(_overload_active_fn) else False,
+        currentConsumptionAmps=em_cron.LAST_CONSUMPTION_AMPS,
         homeMaxAmps=cfg.homeMaxAmps,
         region=cfg.region.value,
         voltage=cfg.voltage,

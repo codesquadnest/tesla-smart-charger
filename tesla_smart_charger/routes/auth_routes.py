@@ -3,7 +3,7 @@ OAuth 2.0 + PKCE authorization flow and basic-auth management.
 
 Endpoints
 ---------
-GET  /auth/start        — Build the Tesla authorization URL and return it.
+POST /auth/start        — Build the Tesla authorization URL and return it.
 GET  /auth/callback     — Receive the code from Tesla, exchange for tokens.
 GET  /auth/vehicles     — List Tesla vehicles accessible with in-flight tokens.
 POST /api/v1/auth/setup — Configure (or disable) HTTP Basic Auth.
@@ -12,6 +12,7 @@ POST /api/v1/auth/verify — Verify a password against the stored hash.
 
 import base64
 import hashlib
+import ipaddress
 import json
 import os
 import secrets
@@ -41,9 +42,23 @@ _oauth_sessions: Dict[str, Dict[str, Any]] = {}
 _oauth_sessions_lock = threading.Lock()
 SESSION_TTL = 600  # 10 minutes
 
+# Completed OAuth results keyed by state so the frontend can retrieve them
+# via a manual paste-URL fallback when postMessage / hash delivery fails.
+_oauth_results: Dict[str, Dict[str, Any]] = {}
+_oauth_results_lock = threading.Lock()
+RESULT_TTL = 300  # 5 minutes
+
 # Schemes allowed for the user-supplied tesla-http-proxy URL. Anything else
 # (file:, gopher:, etc.) is rejected to limit SSRF surface.
 _ALLOWED_PROXY_SCHEMES = ("http", "https")
+
+# Known Tesla token issuers — used to validate the ``issuer`` param from the
+# OAuth callback before constructing the token-exchange POST URL.  Anything
+# outside this allowlist is rejected (SSRF + secret leakage guard).
+_ALLOWED_TOKEN_ISSUERS = (
+    "https://auth.tesla.com/oauth2/v3",
+    "https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3",
+)
 
 
 def init(app_config: AppConfig) -> None:
@@ -56,9 +71,9 @@ def _validate_proxy_url(proxy_url: str) -> None:
     Reject obviously unsafe proxy URLs before they are used to build outbound,
     token-bearing requests. Requires an http/https scheme and a host.
 
-    Note: this is a guard, not a full SSRF allowlist. Because this is a
-    self-hosted app where the operator points at their own tesla-http-proxy,
-    the host itself is intentionally not allowlisted.
+    Also rejects loopback / link-local IP addresses to limit SSRF surface,
+    while allowing private (RFC1918) IPs since the proxy typically runs on
+    the same LAN.
     """
     parsed = urllib.parse.urlparse(proxy_url)
     if parsed.scheme not in _ALLOWED_PROXY_SCHEMES or not parsed.hostname:
@@ -66,6 +81,16 @@ def _validate_proxy_url(proxy_url: str) -> None:
             status_code=400,
             detail="proxy_url must be an http(s) URL with a host.",
         )
+    # Reject loopback and link-local IPs
+    try:
+        ip = ipaddress.ip_address(parsed.hostname)
+        if ip.is_loopback or ip.is_link_local:
+            raise HTTPException(
+                status_code=400,
+                detail=f"proxy_url host {parsed.hostname} is not allowed.",
+            )
+    except ValueError:
+        pass  # hostname, not an IP — can't validate further without DNS
 
 
 def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str] = None) -> str:
@@ -103,12 +128,15 @@ def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str
     @keyframes spin{{to{{transform:rotate(360deg)}}}}
     p{{color:#475569;margin:0;font-size:.95rem}}
     .err{{color:#dc2626}}
+    .close-link{{display:none;margin-top:1rem;color:#3b82f6;cursor:pointer;
+                 text-decoration:underline;font-size:.85rem}}
   </style>
 </head>
 <body>
   <div class="card">
     <div class="spinner"></div>
     <p id="msg">Completing authorization&hellip;</p>
+    <p id="closeLink" class="close-link">Close this window</p>
   </div>
   <script>
     (function() {{
@@ -116,8 +144,21 @@ def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str
       try {{
         if (window.opener) {{
           window.opener.postMessage(msg, '*');
+          // Also write tokens to the opener's URL hash as a fallback for
+          // browsers / reverse-proxy setups that block postMessage delivery.
+          try {{
+            window.opener.location.hash =
+              '#tsc-oauth=' + encodeURIComponent(JSON.stringify(msg));
+          }} catch(e) {{ /* cross-origin hash not allowed — ignore */ }}
           document.getElementById('msg').textContent = 'Done! Closing\u2026';
           setTimeout(function() {{ window.close(); }}, 400);
+          // If window.close() is blocked (common in modern browsers), show
+          // a link so the user can close the popup manually after 3 seconds.
+          setTimeout(function() {{
+            if (!window.closed) {{
+              document.getElementById('closeLink').style.display = 'block';
+            }}
+          }}, 3000);
         }} else {{
           document.getElementById('msg').className = 'err';
           document.getElementById('msg').textContent =
@@ -128,6 +169,9 @@ def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str
         document.getElementById('msg').textContent = 'Error: ' + e.message;
       }}
     }})();
+    document.getElementById('closeLink').addEventListener('click', function() {{
+      window.close();
+    }});
   </script>
 </body>
 </html>"""
@@ -154,20 +198,26 @@ def _clean_expired_sessions() -> None:
 
 # ─── OAuth flow ────────────────────────────────────────────────────────────────
 
-@router.get("/auth/start")
-def auth_start(
-    client_id: str = Query(..., description="Tesla developer app client_id"),
-    redirect_uri: str = Query(..., description="Your registered callback URL, e.g. http://host:8000/auth/callback"),
-    proxy_url: str = Query(..., description="URL of the local tesla-http-proxy"),
-    region: str = Query("eu", description="Tesla region: eu | na | ap"),
-) -> JSONResponse:
+class AuthStartBody(BaseModel):
+    """Body for /auth/start — credentials sent in POST body to avoid leaking
+    the client_secret into server access logs, browser history, or proxies."""
+
+    client_id: str
+    client_secret: str = ""
+    redirect_uri: str
+    proxy_url: str
+    region: str = "eu"
+
+
+@router.post("/auth/start")
+def auth_start(body: AuthStartBody) -> JSONResponse:
     """
     Build the Tesla OAuth 2.0 authorization URL (PKCE).
 
     The caller should redirect the user's browser to the returned ``auth_url``.
     """
     _clean_expired_sessions()
-    _validate_proxy_url(proxy_url)
+    _validate_proxy_url(body.proxy_url)
 
     state = secrets.token_urlsafe(32)
     code_verifier = _generate_code_verifier()
@@ -176,16 +226,17 @@ def auth_start(
     with _oauth_sessions_lock:
         _oauth_sessions[state] = {
             "code_verifier": code_verifier,
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "proxy_url": proxy_url,
-            "region": region,
+            "client_id": body.client_id,
+            "client_secret": body.client_secret,
+            "redirect_uri": body.redirect_uri,
+            "proxy_url": body.proxy_url,
+            "region": body.region,
             "expires_at": time.time() + SESSION_TTL,
         }
 
     params = {
-        "client_id": client_id,
-        "redirect_uri": redirect_uri,
+        "client_id": body.client_id,
+        "redirect_uri": body.redirect_uri,
         "response_type": "code",
         "scope": constants.TESLA_OAUTH_SCOPES,
         "state": state,
@@ -196,38 +247,54 @@ def auth_start(
     return JSONResponse({"auth_url": auth_url, "state": state}, status_code=200)
 
 
-@router.get("/auth/callback")
-def auth_callback(
-    code: str = Query(...),
-    state: str = Query(...),
-) -> HTMLResponse:
+def _perform_token_exchange(code: str, state: str, issuer: Optional[str] = None) -> Dict[str, Any]:
     """
-    OAuth callback — exchanges the authorization code for access/refresh tokens.
+    Look up the PKCE session, exchange the authorization code for tokens,
+    and return the result payload dict.
 
-    Tesla redirects the user's browser here after they approve access.  This
-    endpoint performs the server-side token exchange and then returns a tiny
-    HTML page that posts the result to the opener window (the onboarding
-    wizard) via ``window.postMessage`` and closes itself.
+    The ``issuer`` is taken from the callback URL's ``issuer`` query param
+    (e.g. ``https://auth.tesla.com/oauth2/v3``).  The token endpoint is
+    derived as ``{issuer}/token``.  If omitted, the legacy fleet-auth URL
+    is used as a fallback.
+
+    Raises ``HTTPException`` on error so callers (both the HTML callback and
+    the JSON exchange endpoint) can handle failures uniformly.
     """
     with _oauth_sessions_lock:
         session = _oauth_sessions.pop(state, None)
     if session is None:
-        return HTMLResponse(_callback_html(error="Invalid or expired OAuth state."))
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state.")
     if time.time() > session["expires_at"]:
-        return HTMLResponse(_callback_html(error="OAuth session expired."))
+        raise HTTPException(status_code=400, detail="OAuth session expired.")
 
-    # Exchange authorization code for tokens
+    # Token endpoint — prefer the issuer from the callback URL, fall back to
+    # the legacy fleet-auth URL.  Validate against an allowlist to prevent
+    # SSRF and secret leakage to arbitrary endpoints.
+    if issuer:
+        validated_issuer = issuer.rstrip("/")
+        if validated_issuer not in _ALLOWED_TOKEN_ISSUERS:
+            raise HTTPException(status_code=400, detail="Invalid token issuer.")
+        token_url = f"{validated_issuer}/token"
+    else:
+        token_url = constants.TESLA_API_TOKEN_URL
+
     token_data = {
         "grant_type": "authorization_code",
         "client_id": session["client_id"],
         "code": code,
         "redirect_uri": session["redirect_uri"],
         "code_verifier": session["code_verifier"],
-        "audience": constants.TESLA_FLEET_API_URLS.get(session["region"], constants.TESLA_AUDIENCE),
     }
+    if session.get("client_secret"):
+        token_data["client_secret"] = session["client_secret"]
+    # The audience parameter is required by the fleet-auth endpoint and
+    # harmless for the auth.tesla.com endpoint.
+    token_data["audience"] = constants.TESLA_FLEET_API_URLS.get(
+        session["region"], constants.TESLA_AUDIENCE
+    )
     try:
         r = requests.post(
-            constants.TESLA_API_TOKEN_URL,
+            token_url,
             data=token_data,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             timeout=20,
@@ -236,16 +303,14 @@ def auth_callback(
         tokens = r.json()
     except requests.RequestException as exc:
         tsc_logger.error("Token exchange failed: %s", exc)
-        return HTMLResponse(_callback_html(error=f"Token exchange failed: {exc}"))
+        raise HTTPException(status_code=502, detail=f"Token exchange failed: {exc}") from exc
 
     access = tokens.get("access_token", "")
     refresh = tokens.get("refresh_token", "")
 
     if not access or not refresh:
-        return HTMLResponse(_callback_html(error="Missing tokens in Tesla response."))
+        raise HTTPException(status_code=502, detail="Missing tokens in Tesla response.")
 
-    # Optionally fetch vehicle list using the new token so the wizard can
-    # pre-populate the vehicle picker without an extra round-trip.
     vehicles_list: list = []
     try:
         from tesla_smart_charger.models import VehicleConfig
@@ -256,6 +321,7 @@ def auth_callback(
             teslaRefreshToken=refresh,
             teslaClientId=session["client_id"],
             teslaHttpProxy=session["proxy_url"],
+            region=session["region"],
         )
         api = TeslaAPI(tmp_vehicle)
         vehicles_list = api.get_vehicles()
@@ -270,12 +336,108 @@ def auth_callback(
         "region": session["region"],
         "vehicles": vehicles_list,
     }
+
+    with _oauth_results_lock:
+        _oauth_results[state] = {
+            "payload": payload,
+            "expires_at": time.time() + RESULT_TTL,
+        }
+
+    return payload
+
+
+def _handle_auth_callback(code: str, state: str, issuer: Optional[str] = None) -> HTMLResponse:
+    """Shared OAuth callback logic — called by both /auth/callback and
+    user-configured redirect URIs (e.g. /done.html)."""
+    try:
+        payload = _perform_token_exchange(code, state, issuer=issuer)
+    except HTTPException as exc:
+        return HTMLResponse(_callback_html(error=exc.detail))
+    except Exception as exc:
+        return HTMLResponse(_callback_html(error=str(exc)))
     return HTMLResponse(_callback_html(payload=payload))
+
+
+@router.get("/auth/callback")
+def auth_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    issuer: Optional[str] = Query(None),
+) -> HTMLResponse:
+    """
+    OAuth callback — exchanges the authorization code for access/refresh tokens.
+
+    Tesla redirects the user's browser here after they approve access.  This
+    endpoint performs the server-side token exchange and then returns a tiny
+    HTML page that posts the result to the opener window (the onboarding
+    wizard) via ``window.postMessage`` and closes itself.
+    """
+    return _handle_auth_callback(code, state, issuer=issuer)
+
+
+# Alias for users whose Tesla developer app is configured with a custom
+# redirect URI (e.g. https://tesla.example.com/done.html) instead of the
+# default /auth/callback path.  Because the auth router is registered
+# before the SPA catch-all in __main__.py this route takes precedence.
+@router.get("/done.html")
+def auth_callback_done(
+    code: str = Query(...),
+    state: str = Query(...),
+    issuer: Optional[str] = Query(None),
+) -> HTMLResponse:
+    return _handle_auth_callback(code, state, issuer=issuer)
+
+
+@router.get("/auth/result/{state}")
+def get_auth_result(state: str) -> JSONResponse:
+    """
+    Retrieve a completed OAuth result by state token.
+
+    This is the manual fallback: when the popup's postMessage / hash delivery
+    fails, the user can paste the callback URL into the main window; the
+    frontend extracts the ``state`` and calls this endpoint to retrieve the
+    tokens that were stored after the successful token exchange.
+    """
+    with _oauth_results_lock:
+        result = _oauth_results.pop(state, None)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Result not found or expired.")
+    if time.time() > result["expires_at"]:
+        raise HTTPException(status_code=404, detail="Result expired.")
+    return JSONResponse(result["payload"])
+
+
+class OAuthExchangeBody(BaseModel):
+    code: str
+    state: str
+    issuer: Optional[str] = None
 
 
 class OAuthVehiclesBody(BaseModel):
     access_token: str
     proxy_url: str
+    region: str = "eu"
+
+
+@router.post("/auth/exchange")
+def exchange_auth_code(body: OAuthExchangeBody) -> JSONResponse:
+    """
+    Manually exchange an authorization code for tokens using the pasted
+    callback URL from the popup.
+
+    This is the manual fallback for when the user's reverse proxy serves a
+    static file at the redirect URI path (e.g. ``/done.html``) instead of
+    forwarding the request to the backend.  The user copies the callback URL
+    from the popup's address bar and pastes it into the main window; the
+    frontend extracts ``code`` and ``state`` and calls this endpoint.
+    """
+    try:
+        payload = _perform_token_exchange(body.code, body.state, issuer=body.issuer)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return JSONResponse(payload)
 
 
 @router.post("/auth/vehicles")
@@ -294,6 +456,7 @@ def list_oauth_vehicles(body: OAuthVehiclesBody) -> JSONResponse:
     tmp_vehicle = VehicleConfig(
         teslaAccessToken=body.access_token,
         teslaHttpProxy=body.proxy_url,
+        region=body.region,
     )
     try:
         api = TeslaAPI(tmp_vehicle)

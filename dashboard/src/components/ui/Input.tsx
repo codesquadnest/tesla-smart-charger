@@ -1,19 +1,21 @@
 import { cn } from '@/lib/utils'
 import type { InputHTMLAttributes, SelectHTMLAttributes } from 'react'
+import { InfoTooltip } from './InfoTooltip'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
   error?: string
   hint?: string
+  info?: string
 }
 
-export function Input({ label, error, hint, className, id, ...props }: InputProps) {
+export function Input({ label, error, hint, info, className, id, ...props }: InputProps) {
   const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
   return (
     <div className="space-y-1">
       {label && (
         <label htmlFor={inputId} className="label">
-          {label}
+          {info ? <InfoTooltip text={info}>{label}</InfoTooltip> : label}
         </label>
       )}
       <input
@@ -34,16 +36,17 @@ export function Input({ label, error, hint, className, id, ...props }: InputProp
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
+  info?: string
   options: { value: string; label: string }[]
 }
 
-export function Select({ label, error, options, className, id, ...props }: SelectProps) {
+export function Select({ label, error, info, options, className, id, ...props }: SelectProps) {
   const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
   return (
     <div className="space-y-1">
       {label && (
         <label htmlFor={inputId} className="label">
-          {label}
+          {info ? <InfoTooltip text={info}>{label}</InfoTooltip> : label}
         </label>
       )}
       <select

@@ -21,6 +21,7 @@ export interface WizardState {
   voltage: number
   // Step 3
   clientId: string
+  clientSecret: string
   proxyUrl: string
   redirectUri: string
   // Step 4 (OAuth result)
@@ -45,6 +46,7 @@ export interface WizardState {
   sleepTimeSecs: number
   downStepPercentage: number
   overloadStrategy: string
+  maxSessionDuration: number
   // Step 9
   authEnabled: boolean
   authUsername: string
@@ -53,15 +55,18 @@ export interface WizardState {
 
 const TOTAL_STEPS = 10
 
-// Persist wizard progress so a page reload (or a transient backend/proxy error)
-// doesn't drop the user back to step 1. Cleared when onboarding completes.
-const STORAGE_KEY = 'tsc.onboarding.v2'
+  // Persist wizard progress so a page reload (or a transient backend/proxy error)
+  // doesn't drop the user back to step 1. Cleared when onboarding completes.
+  // Secrets (OAuth tokens, passwords) are stripped before writing to localStorage
+  // to reduce the XSS-accessible surface.
+  const STORAGE_KEY = 'tsc.onboarding.v2'
 
 function defaultState(): WizardState {
   return {
     region: 'eu',
     voltage: 230,
     clientId: '',
+    clientSecret: '',
     proxyUrl: 'http://localhost:4443',
     redirectUri: `${window.location.origin}/auth/callback`,
     accessToken: '',
@@ -74,6 +79,7 @@ function defaultState(): WizardState {
     sleepTimeSecs: 30,
     downStepPercentage: 0.5,
     overloadStrategy: 'proportional',
+    maxSessionDuration: 600,
     authEnabled: false,
     authUsername: '',
     authPassword: '',
@@ -116,9 +122,19 @@ export default function OnboardingPage() {
   const [state, setState] = useState<WizardState>(persisted?.state ?? defaultState())
 
   // Persist progress on every change so a reload restores the same step/state.
+  // Secrets are excluded to avoid XSS-accessible plaintext storage.
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ step, state }))
+      const persistable = {
+        ...state,
+        accessToken: '',
+        refreshToken: '',
+        authPassword: '',
+      }
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ step, state: persistable }),
+      )
     } catch {
       /* localStorage unavailable or full — non-fatal */
     }
@@ -130,14 +146,17 @@ export default function OnboardingPage() {
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS))
   const back = () => setStep((s) => Math.max(s - 1, 1))
 
-  const finish = () => {
+  const finish = async () => {
     // Onboarding is complete — drop the persisted draft (incl. any tokens).
     try {
       localStorage.removeItem(STORAGE_KEY)
     } catch {
       /* ignore */
     }
-    queryClient.invalidateQueries({ queryKey: ['status'] })
+    // Wait for the status refetch so AppRoutes sees configured=true before
+    // navigating away — otherwise it reads stale cached data and redirects
+    // back to onboarding.
+    await queryClient.refetchQueries({ queryKey: ['status'] })
     navigate('/')
   }
 

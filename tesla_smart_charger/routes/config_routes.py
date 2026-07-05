@@ -1,5 +1,7 @@
 """GET /api/v1/config  and  POST /api/v1/config — system configuration."""
 
+import ipaddress
+import requests
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -22,6 +24,13 @@ def init(app_config: AppConfig) -> None:
     _app_config = app_config
 
 
+class TestEnergyMonitorBody(BaseModel):
+    """Body for testing an energy monitor connection."""
+
+    ip: str
+    type: str = "shelly_em"
+
+
 class SystemConfigUpdate(BaseModel):
     """Partial system config update body — all fields optional."""
 
@@ -34,9 +43,46 @@ class SystemConfigUpdate(BaseModel):
     downStepPercentage: Optional[float] = None
     upStepPercentage: Optional[float] = None
     overloadStrategy: Optional[OverloadStrategy] = None
+    maxSessionDuration: Optional[int] = None
     hostIp: Optional[str] = None
     apiPort: Optional[int] = None
     configured: Optional[bool] = None
+
+
+@router.post("/test-energy-monitor")
+def test_energy_monitor(body: TestEnergyMonitorBody) -> JSONResponse:
+    """
+    Test connectivity to an energy monitor device.
+
+    Makes a server-side request (no CORS restrictions) to ``http://{ip}/status/``
+    and returns whether the device responded successfully.
+    """
+    try:
+        ip = ipaddress.ip_address(body.ip)
+        if ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+            return JSONResponse({
+                "ok": False,
+                "error": f"IP {body.ip} is not allowed.",
+            }, status_code=400)
+    except ValueError:
+        return JSONResponse({
+            "ok": False,
+            "error": f"Invalid IP address: {body.ip}",
+        }, status_code=400)
+
+    try:
+        r = requests.get(f"http://{body.ip}/status/", timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        return JSONResponse({
+            "ok": True,
+            "emeters": len(data.get("emeters", [])),
+        })
+    except requests.RequestException as exc:
+        return JSONResponse({
+            "ok": False,
+            "error": str(exc),
+        })
 
 
 @router.get("/config")

@@ -7,7 +7,6 @@ interface Props {
   update: (p: Partial<WizardState>) => void
   next: () => void
   back: () => void
-  finish: () => void
 }
 
 export function Step6ChargerSettings({ state, update, next, back }: Props) {
@@ -47,6 +46,7 @@ export function Step6ChargerSettings({ state, update, next, back }: Props) {
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Max amps (A)"
+                  info="Maximum charging current for this vehicle. The overload handler will not exceed this."
                   type="number"
                   min={1}
                   max={80}
@@ -55,6 +55,7 @@ export function Step6ChargerSettings({ state, update, next, back }: Props) {
                 />
                 <Input
                   label="Min amps (A)"
+                  info="Minimum charging current for this vehicle. The overload handler will not reduce below this."
                   type="number"
                   min={1}
                   max={80}
@@ -64,6 +65,7 @@ export function Step6ChargerSettings({ state, update, next, back }: Props) {
               </div>
               <Input
                 label="Priority (1 = highest)"
+                info="In priority mode: lower number = last to be throttled. Higher numbers get reduced first."
                 type="number"
                 min={1}
                 max={10}

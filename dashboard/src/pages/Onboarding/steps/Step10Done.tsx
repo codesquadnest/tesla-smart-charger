@@ -37,6 +37,7 @@ export function Step10Done({ state, back, finish }: Props) {
         sleepTimeSecs: state.sleepTimeSecs,
         downStepPercentage: state.downStepPercentage,
         overloadStrategy: state.overloadStrategy as 'proportional' | 'priority',
+        maxSessionDuration: state.maxSessionDuration,
       })
 
       // 2. Add each selected vehicle
@@ -49,11 +50,12 @@ export function Step10Done({ state, back, finish }: Props) {
         await vehiclesApi.add({
           name: v.display_name,
           vin: v.vin,
-          teslaVehicleId: String(v.id),
+          teslaVehicleId: v.vin,
           teslaAccessToken: state.accessToken,
           teslaRefreshToken: state.refreshToken,
           teslaHttpProxy: state.proxyUrl,
           teslaClientId: state.clientId,
+          region: state.region,
           chargerMaxAmps: settings.chargerMaxAmps,
           chargerMinAmps: settings.chargerMinAmps,
           priority: settings.priority,
@@ -95,6 +97,7 @@ export function Step10Done({ state, back, finish }: Props) {
             <Row label="Region" value={state.region.toUpperCase()} />
             <Row label="Voltage" value={`${state.voltage}V`} />
             <Row label="Home max amps" value={`${state.homeMaxAmps}A`} />
+            <Row label="Max session duration" value={`${state.maxSessionDuration}s`} />
             <Row label="Overload strategy" value={state.overloadStrategy} />
             <Row label="Energy monitor" value={`${state.energyMonitorType} @ ${state.energyMonitorIp}`} />
             <Row

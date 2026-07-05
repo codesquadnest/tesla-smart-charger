@@ -1,6 +1,7 @@
 """Energy-monitor polling cron — triggers overload handling when needed."""
 
 import threading
+from typing import Optional
 
 from retrying import retry
 
@@ -13,6 +14,11 @@ tsc_logger = logger.get_logger()
 
 # Global overload flag (toggled by this module only)
 OVERLOAD = False
+
+# Latest consumption reading in amps — written by the cron on each poll,
+# read by the status endpoint so the dashboard shows live home consumption.
+# Initialised to None so the dashboard shows "—" until the first poll.
+LAST_CONSUMPTION_AMPS: Optional[float] = None
 
 
 def _toggle_overload(overload: bool) -> bool:
@@ -59,6 +65,8 @@ def _check_power_consumption(em_ctrl, app_config: AppConfig) -> None:
             raise ValueError("EM returned None")
         em_amps = float(watts) / max(cfg.voltage, 1.0)
         tsc_logger.debug("Consumption: %.2f A (%.1f W)", em_amps, watts)
+        global LAST_CONSUMPTION_AMPS
+        LAST_CONSUMPTION_AMPS = em_amps
     except (ValueError, TypeError) as exc:
         tsc_logger.error("Error reading consumption: %s", exc)
         return
@@ -71,6 +79,7 @@ def _check_power_consumption(em_ctrl, app_config: AppConfig) -> None:
         started, msg = overload_handler.trigger_overload(app_config)
         if not started:
             tsc_logger.info("Overload trigger skipped: %s", msg)
+            _toggle_overload(False)  # Reset so next poll can retry
     else:
         _toggle_overload(False)
 

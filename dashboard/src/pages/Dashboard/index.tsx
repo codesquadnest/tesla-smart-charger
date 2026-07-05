@@ -102,8 +102,8 @@ export default function DashboardPage() {
 
 function VehicleCard({ vehicle: v }: { vehicle: VehicleStatus }) {
   const chargePct =
-    v.chargerActualCurrent != null
-      ? Math.round((v.chargerActualCurrent / v.chargerMaxAmps) * 100)
+    v.chargerActualCurrent != null && v.chargerMaxAmps > 0
+      ? Math.max(0, Math.min(100, Math.round((v.chargerActualCurrent / v.chargerMaxAmps) * 100)))
       : null
 
   return (

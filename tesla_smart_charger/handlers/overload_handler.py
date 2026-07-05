@@ -72,8 +72,8 @@ def _save_event(start_time: str, vehicle_id: Optional[str] = None) -> None:
     finally:
         try:
             ctrl.close_connection()
-        except Exception:
-            pass
+        except Exception as exc:
+            tsc_logger.debug("Error closing DB connection: %s", exc)
 
 
 # ─── Calculation helpers ───────────────────────────────────────────────────────
@@ -322,7 +322,9 @@ def handle_overload(app_config: AppConfig) -> None:
             return
 
         # ── Stabilisation phase ──────────────────────────────────────────────
-        # Wait up to 10 × sleep_time for consumption to stabilise after first step
+        # Wait up to 10 × sleep_time for consumption to stabilise after first step.
+        # If consumption drops within limits during this window we break early so
+        # the main adjustment loop (which handles ramp-up) can take over.
         for _ in range(10):
             time.sleep(cfg.sleepTimeSecs)
             cfg = app_config.system  # refresh
@@ -330,12 +332,28 @@ def handle_overload(app_config: AppConfig) -> None:
             if em_amps > cfg.homeMaxAmps:
                 tsc_logger.info("Overload still present after stabilisation wait.")
                 break
+            tsc_logger.info("Consumption within limits during stabilisation — entering adjustment loop.")
+            break
 
         # ── Supervised adjustment loop ───────────────────────────────────────
         no_change_count = 0
+        session_start_ts = time.time()
+        ramp_up = False
+        ramp_up_start = 0.0
+        at_max_count = 0
+        CONSECUTIVE_MAX_NEEDED = 3
 
         while True:
             cfg = app_config.system  # always act on fresh config
+
+            # Max total session duration guard
+            elapsed = time.time() - session_start_ts
+            if elapsed > cfg.maxSessionDuration:
+                tsc_logger.info(
+                    "Session max duration reached (%.0fs) — ending session.",
+                    elapsed,
+                )
+                break
 
             # Refresh vehicle API references in case tokens were updated
             apis = [(v, TeslaAPI(v)) for v in app_config.vehicles if v.enabled]
@@ -350,49 +368,104 @@ def handle_overload(app_config: AppConfig) -> None:
                 tsc_logger.warning("Consumption read returned 0 — ending session.")
                 break
 
-            if em_amps <= cfg.homeMaxAmps:
+            if em_amps > cfg.homeMaxAmps:
+                # ── OVERLOAD STILL PRESENT — apply reduction ───────────────
+                ramp_up = False
+                at_max_count = 0
+
+                if no_change_count >= constants.MAX_QUERIES:
+                    tsc_logger.info(
+                        "No change for %d consecutive iterations — ending session.",
+                        no_change_count,
+                    )
+                    break
+
+                # Check whether all vehicles are already at minimum before applying
+                all_at_min = all(
+                    float(d["charge_state"]["charger_actual_current"]) <= v.chargerMinAmps
+                    for v, _, d in charging
+                )
+                if all_at_min:
+                    tsc_logger.info("All vehicles at minimum charge limit — ending session.")
+                    break
+
+                strategy = cfg.overloadStrategy
                 tsc_logger.info(
-                    "Consumption within limits (%.2fA ≤ %.2fA) — ending session.",
+                    "Applying %s strategy | em=%.2fA | home_max=%.2fA | vehicles=%d",
+                    strategy,
                     em_amps,
                     cfg.homeMaxAmps,
+                    len(charging),
                 )
-                break
 
-            if no_change_count >= constants.MAX_QUERIES:
-                tsc_logger.info(
-                    "No change for %d consecutive iterations — ending session.",
-                    no_change_count,
+                if strategy == OverloadStrategy.PRIORITY:
+                    changed = _apply_priority(charging, em_amps, cfg.homeMaxAmps)
+                else:
+                    changed = _apply_proportional(charging, em_amps, cfg.homeMaxAmps)
+
+                # Only count iterations where no adjustment could be made
+                if not changed:
+                    no_change_count += 1
+                else:
+                    no_change_count = 0  # reset on successful adjustment
+            else:
+                # ── CONSUMPTION WITHIN LIMITS — ramp back up ──────────────
+                if not ramp_up:
+                    ramp_up = True
+                    ramp_up_start = time.time()
+                    at_max_count = 0
+                    tsc_logger.info(
+                        "Consumption within limits (%.2fA ≤ %.2fA) — ramping up.",
+                        em_amps,
+                        cfg.homeMaxAmps,
+                    )
+
+                # Ramp-up phase duration guard (cannot exceed maxSessionDuration)
+                if time.time() - ramp_up_start > cfg.maxSessionDuration:
+                    tsc_logger.info(
+                        "Ramp-up phase max duration reached — ending session.",
+                    )
+                    break
+
+                # Try to increase charge limit for each vehicle
+                for vehicle, api, data in charging:
+                    current = float(data["charge_state"]["charger_actual_current"])
+                    if current >= vehicle.chargerMaxAmps:
+                        continue
+                    step = cfg.upStepPercentage * (vehicle.chargerMaxAmps - vehicle.chargerMinAmps)
+                    new_limit = min(current + step, vehicle.chargerMaxAmps)
+                    new_limit = max(int(vehicle.chargerMinAmps), math.floor(new_limit))
+                    if new_limit > math.floor(current):
+                        try:
+                            api.set_charge_amp_limit(new_limit)
+                            tsc_logger.info(
+                                "Ramping up %s: %.0fA → %.0fA",
+                                vehicle.name or vehicle.id,
+                                current,
+                                new_limit,
+                            )
+                        except HTTPException as exc:
+                            tsc_logger.error(
+                                "Failed to ramp up %s: %s", vehicle.id, exc,
+                            )
+
+                # Check if all vehicles are at their configured max
+                all_at_max = all(
+                    float(d["charge_state"]["charger_actual_current"]) >= v.chargerMaxAmps - 1.0
+                    for v, _, d in charging
                 )
-                break
-
-            # Check whether all vehicles are already at minimum before applying
-            all_at_min = all(
-                float(d["charge_state"]["charger_actual_current"]) <= v.chargerMinAmps
-                for v, _, d in charging
-            )
-            if all_at_min:
-                tsc_logger.info("All vehicles at minimum charge limit — ending session.")
-                break
-
-            strategy = cfg.overloadStrategy
-            tsc_logger.info(
-                "Applying %s strategy | em=%.2fA | home_max=%.2fA | vehicles=%d",
-                strategy,
-                em_amps,
-                cfg.homeMaxAmps,
-                len(charging),
-            )
-
-            if strategy == OverloadStrategy.PRIORITY:
-                changed = _apply_priority(charging, em_amps, cfg.homeMaxAmps)
-            else:
-                changed = _apply_proportional(charging, em_amps, cfg.homeMaxAmps)
-
-            # Only count iterations where no adjustment could be made
-            if not changed:
-                no_change_count += 1
-            else:
-                no_change_count = 0  # reset on successful adjustment
+                if all_at_max:
+                    at_max_count += 1
+                    tsc_logger.info(
+                        "All vehicles at max amp — count %d/%d",
+                        at_max_count,
+                        CONSECUTIVE_MAX_NEEDED,
+                    )
+                    if at_max_count >= CONSECUTIVE_MAX_NEEDED:
+                        tsc_logger.info("Overload resolved — ending session.")
+                        break
+                else:
+                    at_max_count = 0
 
             time.sleep(cfg.sleepTimeSecs)
 

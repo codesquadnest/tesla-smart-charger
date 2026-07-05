@@ -43,8 +43,8 @@ def get_history(
         if ctrl:
             try:
                 ctrl.close_connection()
-            except Exception:
-                pass
+            except Exception as exc:
+                tsc_logger.debug("Error closing DB connection: %s", exc)
 
 
 # Backward-compatible endpoint kept for legacy em_cron self-calls
@@ -64,5 +64,5 @@ def get_history_legacy(num_records: int) -> JSONResponse:
         if ctrl:
             try:
                 ctrl.close_connection()
-            except Exception:
-                pass
+            except Exception as exc:
+                tsc_logger.debug("Error closing DB connection: %s", exc)

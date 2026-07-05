@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Alert } from '@/components/ui/Alert'
 import { isValidHost } from '@/lib/utils'
+import { configApi } from '@/api/config'
 import { CheckCircle } from 'lucide-react'
 
 interface Props {
@@ -11,7 +12,6 @@ interface Props {
   update: (p: Partial<WizardState>) => void
   next: () => void
   back: () => void
-  finish: () => void
 }
 
 const emTypes = [{ value: 'shelly_em', label: 'Shelly EM' }]
@@ -31,9 +31,7 @@ export function Step7EnergyMonitor({ state, update, next, back }: Props) {
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await fetch(`http://${ip}/status/`, {
-        signal: AbortSignal.timeout(5000),
-      })
+      const res = await configApi.testEnergyMonitor(ip, state.energyMonitorType)
       setTestResult(res.ok ? 'ok' : 'fail')
     } catch {
       setTestResult('fail')
@@ -54,6 +52,7 @@ export function Step7EnergyMonitor({ state, update, next, back }: Props) {
       <div className="card p-6 space-y-5">
         <Select
           label="Energy monitor type"
+          info="Energy monitor hardware model. Currently only Shelly EM is supported."
           value={state.energyMonitorType}
           onChange={(e) => update({ energyMonitorType: e.target.value })}
           options={emTypes}
@@ -61,6 +60,7 @@ export function Step7EnergyMonitor({ state, update, next, back }: Props) {
 
         <Input
           label="Energy monitor IP address"
+          info="IP address of the energy monitor device on the local network."
           placeholder="192.168.1.100"
           value={state.energyMonitorIp}
           onChange={(e) => update({ energyMonitorIp: e.target.value })}

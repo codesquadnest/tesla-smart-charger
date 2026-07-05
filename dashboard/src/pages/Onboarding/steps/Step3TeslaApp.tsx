@@ -13,7 +13,10 @@ interface Props {
 }
 
 export function Step3TeslaApp({ state, update, next, back }: Props) {
-  const canContinue = state.clientId.trim().length > 0 && state.proxyUrl.trim().length > 0
+  const canContinue =
+    state.clientId.trim().length > 0 &&
+    state.clientSecret.trim().length > 0 &&
+    state.proxyUrl.trim().length > 0
 
   return (
     <div className="space-y-6">
@@ -46,6 +49,15 @@ export function Step3TeslaApp({ state, update, next, back }: Props) {
           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
           value={state.clientId}
           onChange={(e) => update({ clientId: e.target.value })}
+        />
+
+        <Input
+          label="Tesla Client Secret"
+          type="password"
+          placeholder="••••••••••••••••••••••••"
+          value={state.clientSecret}
+          onChange={(e) => update({ clientSecret: e.target.value })}
+          hint="Found in your Tesla developer app settings alongside the Client ID."
         />
 
         <Input

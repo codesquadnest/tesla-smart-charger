@@ -12,7 +12,6 @@ interface Props {
   update: (p: Partial<WizardState>) => void
   next: () => void
   back: () => void
-  finish: () => void
 }
 
 export function Step5SelectVehicles({ state, update, next, back }: Props) {
@@ -24,7 +23,7 @@ export function Step5SelectVehicles({ state, update, next, back }: Props) {
     setLoading(true)
     setError('')
     try {
-      const res = await authApi.listVehicles(state.accessToken, state.proxyUrl)
+      const res = await authApi.listVehicles(state.accessToken, state.proxyUrl, state.region)
       setVehicles(res.vehicles)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to fetch vehicles.')

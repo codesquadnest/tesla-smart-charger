@@ -7,7 +7,6 @@ interface Props {
   update: (p: Partial<WizardState>) => void
   next: () => void
   back: () => void
-  finish: () => void
 }
 
 const strategyOptions = [
@@ -34,6 +33,7 @@ export function Step8CircuitStrategy({ state, update, next, back }: Props) {
       <div className="card p-6 space-y-5">
         <Input
           label="Home max amps (A)"
+          info="Your main breaker or circuit limit. The app will not let total consumption exceed this."
           type="number"
           min={1}
           max={400}
@@ -44,6 +44,7 @@ export function Step8CircuitStrategy({ state, update, next, back }: Props) {
 
         <Select
           label="Overload strategy"
+          info="How to distribute load reduction across vehicles when overload is detected."
           value={state.overloadStrategy}
           onChange={(e) => update({ overloadStrategy: e.target.value })}
           options={strategyOptions}
@@ -51,6 +52,7 @@ export function Step8CircuitStrategy({ state, update, next, back }: Props) {
 
         <Input
           label="Stabilisation sleep time (seconds)"
+          info="Seconds between adjustment steps during an overload event. Lower values react faster but may cause more API calls."
           type="number"
           min={5}
           max={300}
@@ -61,6 +63,7 @@ export function Step8CircuitStrategy({ state, update, next, back }: Props) {
 
         <Input
           label="Initial downstep multiplier"
+          info="First response when overload is detected. Current charge amps are multiplied by this factor (e.g. 0.5 = halve)."
           type="number"
           min={0.1}
           max={1.0}
@@ -68,6 +71,18 @@ export function Step8CircuitStrategy({ state, update, next, back }: Props) {
           value={state.downStepPercentage}
           onChange={(e) => update({ downStepPercentage: Number(e.target.value) })}
           hint="First response: multiply current charge amps by this factor (e.g. 0.5 = halve)."
+        />
+
+        <Input
+          label="Max session duration (seconds)"
+          info="Maximum time a supervised overload session can run before ending. Prevents the car from staying stuck at a reduced limit if overload persists."
+          type="number"
+          min={60}
+          max={3600}
+          step={30}
+          value={state.maxSessionDuration}
+          onChange={(e) => update({ maxSessionDuration: Number(e.target.value) })}
+          hint="Maximum time a supervised overload session can run before automatically ending (default 600 = 10 min)."
         />
       </div>
 

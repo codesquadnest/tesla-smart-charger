@@ -251,7 +251,7 @@ function AddVehicleForm({ onClose }: { onClose: () => void }) {
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         />
         <Input
-          label="VIN (optional)"
+          label="VIN"
           value={form.vin}
           onChange={(e) => setForm((f) => ({ ...f, vin: e.target.value }))}
         />

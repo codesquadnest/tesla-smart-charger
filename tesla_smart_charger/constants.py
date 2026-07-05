@@ -22,10 +22,11 @@ MAX_QUERIES = 5
 
 # ─── Config files ──────────────────────────────────────────────────────────────
 
-# New structured config directory
-CONFIG_DIR = "config"
-SYSTEM_CONFIG_FILE = "config/system.json"
-VEHICLES_CONFIG_FILE = "config/vehicles.json"
+# New structured config directory.
+# Override via TESLA_CONFIG_DIR env var (e.g. TESLA_CONFIG_DIR=/data/tesla-smart-charger).
+CONFIG_DIR = os.getenv("TESLA_CONFIG_DIR", "config")
+SYSTEM_CONFIG_FILE = f"{CONFIG_DIR}/system.json"
+VEHICLES_CONFIG_FILE = f"{CONFIG_DIR}/vehicles.json"
 
 # Legacy config file (auto-migrated on first startup)
 LEGACY_CONFIG_FILE = "config.json"

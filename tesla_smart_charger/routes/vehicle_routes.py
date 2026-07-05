@@ -27,12 +27,13 @@ class VehicleCreate(BaseModel):
     """Body for adding a new vehicle."""
 
     name: str = ""
-    vin: str = ""
+    vin: str
     teslaVehicleId: str
     teslaAccessToken: str
     teslaRefreshToken: str
     teslaHttpProxy: str
     teslaClientId: str
+    region: str = "eu"
     chargerMaxAmps: float = 25.0
     chargerMinAmps: float = 6.0
     priority: int = 1

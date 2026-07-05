@@ -144,7 +144,7 @@ def overload() -> JSONResponse:
 
 @app.post("/underload")
 def underload() -> JSONResponse:
-    return JSONResponse({"msg": "underload session not yet implemented"}, status_code=404)
+    return JSONResponse({"msg": "underload session not yet implemented"}, status_code=501)
 
 
 # ─── Static files — React dashboard ───────────────────────────────────────────

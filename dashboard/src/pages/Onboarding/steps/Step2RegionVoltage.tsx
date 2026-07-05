@@ -35,6 +35,7 @@ export function Step2RegionVoltage({ state, update, next, back }: Props) {
       <div className="card p-6 space-y-5">
         <Select
           label="Tesla Fleet API region"
+          info="Tesla Fleet API region matching your vehicle's market (EU, North America, or Asia Pacific)."
           value={state.region}
           onChange={(e) => handleRegionChange(e.target.value)}
           options={regionOptions}
@@ -42,6 +43,7 @@ export function Step2RegionVoltage({ state, update, next, back }: Props) {
 
         <Input
           label="Home grid voltage (V)"
+          info="Your home's nominal grid voltage. Used to convert power (watts) to current (amps)."
           type="number"
           min={100}
           max={480}

@@ -8,7 +8,6 @@ interface Props {
   update: (p: Partial<WizardState>) => void
   next: () => void
   back: () => void
-  finish: () => void
 }
 
 export function Step9Security({ state, update, next, back }: Props) {
@@ -47,11 +46,13 @@ export function Step9Security({ state, update, next, back }: Props) {
           <>
             <Input
               label="Username"
+              info="HTTP Basic Auth username. Used to access the dashboard and API."
               value={state.authUsername}
               onChange={(e) => update({ authUsername: e.target.value.trim() })}
             />
             <Input
               label="Password"
+              info="HTTP Basic Auth password. Minimum 8 characters recommended."
               type="password"
               value={state.authPassword}
               onChange={(e) => update({ authPassword: e.target.value.trim() })}

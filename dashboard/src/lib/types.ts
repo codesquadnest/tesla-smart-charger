@@ -21,6 +21,7 @@ export interface SystemConfig {
   downStepPercentage: number
   upStepPercentage: number
   overloadStrategy: OverloadStrategyType
+  maxSessionDuration: number
   hostIp: string
   apiPort: number
   corsOrigins: string[]
@@ -68,6 +69,7 @@ export interface Vehicle {
   teslaRefreshToken: string
   teslaHttpProxy: string
   teslaClientId: string
+  region: string
   chargerMaxAmps: number
   chargerMinAmps: number
   priority: number

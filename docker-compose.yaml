@@ -31,6 +31,7 @@ services:
       - "8000:8000"
     environment:
       - TESLA_CERTS_DIR=/app/certs
+      - TESLA_PROXY_URL=https://tesla-http-proxy:4443
       - TZ=Europe/Lisbon
     restart: unless-stopped
     depends_on:

@@ -132,11 +132,11 @@ JSON editing is needed.
 |------|-------------------|
 | 1 — Welcome | Overview |
 | 2 — Region & Voltage | Tesla Fleet API region (EU / NA / AP) and grid voltage |
-| 3 — Tesla Application | Client ID and HTTP proxy URL (where `tesla-http-proxy` is reachable) |
-| 4 — Authorize | Opens Tesla sign-in in a popup; tokens are captured automatically |
+| 3 — Tesla Application | Client ID, Client Secret, OAuth redirect URI, and HTTP proxy URL (where `tesla-http-proxy` is reachable) |
+| 4 — Authorize | Opens Tesla sign-in in a popup; tokens are captured automatically. If your reverse proxy serves a static callback page instead of forwarding to the backend, paste the callback URL manually or use the hash-fallback method |
 | 5 — Select Vehicles | Pick which vehicles from your Tesla account to manage |
 | 6 — Charger Settings | Per-vehicle max/min charge amps |
-| 7 — Energy Monitor | Shelly EM IP address and type |
+| 7 — Energy Monitor | Shelly EM IP address and type — "Test connection" probes the device through the backend (no CORS issues) |
 | 8 — Circuit & Strategy | Home circuit limit, overload strategy (proportional or priority) |
 | 9 — Security | Optional HTTP Basic Auth for the dashboard |
 | 10 — Done | Review and apply — config is written to `config/system.json` and `config/vehicles.json` |
@@ -145,7 +145,56 @@ After the wizard completes the application is fully operational.
 
 ---
 
-## 4. Directory layout
+## 4. Settings reference
+
+These settings can be changed after onboarding via the dashboard **Settings** page (`GET /api/v1/config`) or directly in `config/system.json`.
+
+### System
+
+| Setting | Description |
+|---------|-------------|
+| `region` | Tesla Fleet API region: `eu`, `na`, or `ap`. Matches your vehicle's market. |
+| `voltage` | Home grid voltage (V). Used to convert power (watts) to current (amps). |
+| `hostIp` | IP address the API server binds to. |
+| `apiPort` | TCP port the API server listens on. |
+
+### Energy Monitor
+
+| Setting | Description |
+|---------|-------------|
+| `energyMonitorType` | Hardware model. Currently only `shelly_em` is supported. |
+| `energyMonitorIp` | IP address of the energy monitor on the local network. |
+
+### Circuit & Strategy
+
+| Setting | Description |
+|---------|-------------|
+| `homeMaxAmps` | Main breaker or circuit limit (A). Total consumption will not be allowed to exceed this. |
+| `overloadStrategy` | How to distribute load reduction: `proportional` (all vehicles equally) or `priority` (lowest-priority vehicle first). |
+| `sleepTimeSecs` | Seconds between adjustment steps during an overload event. Lower values react faster but may cause more API calls. |
+| `downStepPercentage` | First-response factor when overload is detected (0.1–1.0). Current charge amps are multiplied by this (e.g. 0.5 = halve). |
+| `upStepPercentage` | Factor used when ramping charge back up after overload clears (0.0–1.0). Applied to the amp range (max - min). |
+| `maxSessionDuration` | Maximum seconds a supervised overload session can run before automatically ending. Prevents the car from staying stuck at a reduced limit. |
+
+### Per-Vehicle (configured in `config/vehicles.json`)
+
+| Setting | Description |
+|---------|-------------|
+| `chargerMaxAmps` | Maximum charging current (A) for this vehicle. The handler will not exceed this. |
+| `chargerMinAmps` | Minimum charging current (A). The handler will not reduce below this. |
+| `priority` | Overload priority (1 = highest). Higher numbers are reduced first in priority mode. |
+
+### Security
+
+| Setting | Description |
+|---------|-------------|
+| `auth.enabled` | Enable HTTP Basic Auth for the dashboard and API. |
+| `auth.username` | Basic Auth username. |
+| `auth.passwordHash` | Stored password hash (never returned by the API). |
+
+---
+
+## 5. Directory layout
 
 ```
 tesla-smart-charger/
@@ -276,6 +325,19 @@ Onboarding is only marked complete after **all** of Step 10's writes succeed
 error, fix that cause and re-apply — the app intentionally does not mark itself
 configured on a partial save. A transient status-fetch failure alone no longer
 forces you back into the wizard.
+
+If clicking "Go to Dashboard" redirects back to `/onboarding`, the status query
+may still return stale cached data. The fix awaits the refetch before navigating
+— rebuild the dashboard image if you're on an older build.
+
+### Authorisation popup shows a static page or "Not Found"
+
+Your reverse proxy may serve a static file for the callback URL instead of
+forwarding to the backend. When the popup cannot reach
+`/auth/callback` on the backend, Step 4 provides a **manual paste** fallback:
+copy the callback URL from the popup's address bar, paste it into the input
+field, and click "Verify". The backend extracts the OAuth code and issuer
+from the URL and completes the exchange.
 
 ### Tesla sign-in works but vehicle data / commands fail (proxy is up)
 

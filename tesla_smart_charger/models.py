@@ -43,6 +43,7 @@ class VehicleConfig(BaseModel):
     teslaRefreshToken: str = ""
     teslaHttpProxy: str = ""
     teslaClientId: str = ""
+    region: str = "eu"
     chargerMaxAmps: float = 25.0
     chargerMinAmps: float = 6.0
     priority: int = 1  # 1 = highest priority (reduced last in priority strategy)
@@ -61,6 +62,7 @@ class SystemConfig(BaseModel):
     downStepPercentage: float = 0.5
     upStepPercentage: float = 0.25
     overloadStrategy: OverloadStrategy = OverloadStrategy.PROPORTIONAL
+    maxSessionDuration: int = 600  # Maximum supervised session duration in seconds (default 10 min)
     hostIp: str = "localhost"
     apiPort: int = 8000
     corsOrigins: List[str] = Field(default_factory=lambda: ["*"])
