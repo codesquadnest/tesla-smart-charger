@@ -1,275 +1,349 @@
 # Quick start
 
-This guide will help you get started with the Tesla Smart Charger.
+This guide walks you through installing and configuring Tesla Smart Charger v2.
 
 ## Prerequisites
 
 - Home server or Raspberry Pi with Git and Docker installed.
-- Shelly EM (any equivalent energy monitor can be compatible with proper adaptations).
-- Webserver like Nginx or Apache where you can host the public key and the callback URL.
-- Tesla developer account.
-- Tesla application.
-- Tesla vehicle.
+- Shelly EM (or compatible energy monitor).
+- A public HTTPS endpoint you control for hosting the Tesla public key and OAuth
+  callback URL (e.g. a subdomain served by Nginx).
+- A Tesla developer account and a registered Tesla application.
+- One or more Tesla vehicles.
 
-### Tesla Fleet API access
+---
 
-Although the official documentation is available on the [Tesla API documentation](https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api),
-this guide will the steps to setup the required authentication and configuration to
-use the tesla-smart-charger.
+## 1. Tesla developer setup
 
-### Setup tesla application
+### 1.1 Create a Tesla application
 
-These instructions are based on the official [Tesla API documentation](https://developer.tesla.com/docs/fleet-api/getting-started/what-is-fleet-api).  
+1. Go to [developer.tesla.com](https://developer.tesla.com) and log in.
+2. Create a new application. You will need:
+   - A **public hostname** where you can host the public key and callback URL.
+   - A **callback URL** in the form `https://<your-domain>/auth/callback`
+     (this should point to your running tesla-smart-charger instance or a
+     reverse-proxy in front of it).
+3. Copy the **Client ID** — you will enter it in the onboarding wizard.
+4. Copy the **Client Secret** — needed only for the partner registration step
+   below.
 
-- Go to [Tesla Developer](https://developer.tesla.com) website.  
-- Login with your Tesla account.  
-- Create a new application:  
-Fill the required fields.
-Add your hostname where the public key and callback URL will be hosted.  
-Add the callback URL. The callback URL should be in the format `https://<hostname>/callback` (e.g. `https://example.com/done.html`).  
-Copy the client ID and client secret. You will need these to authenticate the tesla-smart-charger.  
-- Generate the private and public keys:  
-Go to the [Tesla Vehicle Command](https://github.com/teslamotors/vehicle-command) repository.  
-Use the tesla-keygen tool to generate the private and public keys:  
-The public key should be hosted on the webserver.  
+### 1.2 Generate keys
 
-**Option 1: Build and use tesla-keygen tool (use this if you have Go installed)**  
+Tesla Fleet API requires a signed ECDH key pair.  The private key stays on your
+server; the public key must be reachable at:
+
+```
+https://<your-domain>/.well-known/appspecific/com.tesla.3p.public-key.pem
+```
+
+**Option A — using Go (tesla-keygen):**
 
 ```bash
 git clone https://github.com/teslamotors/vehicle-command.git
 cd vehicle-command/cmd/tesla-keygen
-go get ./...
 go build ./...
 ./tesla-keygen -key-file private-key.pem -keyring-type file -output public-key.pem create
 ```
 
-#### Option 2: Use the Docker image (use this if you don't have Go installed)
+**Option B — using Docker (no Go required):**
 
 ```bash
 docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
-docker run --rm -v $PWD/certs:/app/certs --name tesla-keygen tesla-keygen:latest
-# Ensure the current user has proper access to the generated files
-# Note: Use an appropriate method for your system to change file ownership
-sudo chown $USER:$USER certs/* # On systems with sudo
-# OR
-chown $(id -u):$(id -g) certs/* # On systems without sudo, when run as root
+docker run --rm -v "$PWD/certs:/app/certs" --name tesla-keygen tesla-keygen:latest
+sudo chown $USER:$USER certs/*
 ```
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Docker
-    participant KeyGen
+Copy the generated files into the `certs/` directory at the project root.
 
-    User->>Docker: Build Docker Image
-    Docker->>KeyGen: Execute tesla-keygen
-    KeyGen-->>Docker: Generate Public Key
-    Docker-->>User: Output Public Key
-    User->>User: Change Ownership of Generated Files
-    Note right of User: Ensures proper file access
-```
+### 1.3 Register your app with Tesla (one-time partner step)
 
-> <https://developer-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem>
-
-- Register the public key with the Tesla application
-In a web browser, go to the following URL:  
-
-> [Tesla OAuth Authorization](https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/authorize?&client_id=$CLIENT_ID&locale=en-US&prompt=login&redirect_uri=$CALLBACK_URL&response_type=code&scope=openid%20vehicle_device_data%20offline_access%20vehicle_cmds%20vehicle_charging_cmds&state=db4af3f87)
-
-**Note:** Replace the `$CLIENT_ID` and `$CALLBACK_URL` with the values from the Tesla application.  
-
-Login with your Tesla account.  
-Copy the code from the URL and use it to register the public key:
+Obtain a partner access token, then register your domain with the Fleet API.
+Replace the placeholders below with your actual values.
 
 ```bash
-CLIENT_ID=$CLIENT_ID
-CLIENT_SECRET=$CLIENT_SECRET
-AUDIENCE="https://fleet-api.prd.eu.vn.cloud.tesla.com"
-CODE=$CODE
-# Partner authentication token request
-curl --request POST \
---header 'Content-Type: application/x-www-form-urlencoded' \
---data-urlencode 'grant_type=client_credentials' \
---data-urlencode "client_id=$CLIENT_ID" \
---data-urlencode "client_secret=$CLIENT_SECRET" \
---data-urlencode 'scope=openid offline_access user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds' \
---data-urlencode "audience=$AUDIENCE" \
-'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
+# 1 — get a partner token
+curl -s -X POST \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'grant_type=client_credentials' \
+  --data-urlencode "client_id=$CLIENT_ID" \
+  --data-urlencode "client_secret=$CLIENT_SECRET" \
+  --data-urlencode 'scope=openid offline_access user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds' \
+  --data-urlencode "audience=https://fleet-api.prd.eu.vn.cloud.tesla.com" \
+  'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token' | jq -r .access_token
+
+# 2 — register your domain
+curl -s -X POST \
+  -H "Authorization: Bearer $PARTNER_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data "{\"domain\": \"https://<your-domain>\"}" \
+  https://fleet-api.prd.eu.vn.cloud.tesla.com/api/1/partner_accounts
 ```
 
-Copy the access token from the response and use it to register the public key:
+> Change the Fleet API base URL for your region:
+> - EU: `fleet-api.prd.eu.vn.cloud.tesla.com`
+> - NA: `fleet-api.prd.na.vn.cloud.tesla.com`
+> - AP: `fleet-api.prd.ap.vn.cloud.tesla.com`
+
+### 1.4 Generate a TLS certificate for the HTTP proxy
+
+The `tesla-http-proxy` sidecar needs a self-signed certificate.  Replace
+`$PROXY_IP` with the LAN IP of your server.
 
 ```bash
-export TESLA_AUTH_TOKEN=$TOKEN
-curl -H "Authorization: Bearer $TESLA_AUTH_TOKEN" \
-    -H 'Content-Type: application/json' \
-    --data '{
-            "domain": "https://example.com",
-        }' \
-    -X POST \
-    -i https://fleet-api.prd.eu.vn.cloud.tesla.com/api/1/partner_accounts
-```
+export PROXY_IP=127.0.0.1
 
-The public key should be registered with the Tesla application.
-
-- Generate a self-signed certificate  
-
-Generate a self-signed certificate for tesla-http-proxy:
-
-```bash
-export HTTPS_PROXY=127.0.0.1 # The IP address of the host machine.
 openssl req -x509 -nodes -newkey ec \
-    -pkeyopt ec_paramgen_curve:secp521r1 \
-    -pkeyopt ec_param_enc:named_curve \
-    -subj '/CN=localhost' \
-    -keyout tls-key.pem -out tls-cert.pem -sha256 -days 3650 \
-    -addext "subjectAltName = DNS:localhost, IP:$HTTPS_PROXY" \
-    -addext "extendedKeyUsage = serverAuth" \
-    -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
+  -pkeyopt ec_paramgen_curve:secp521r1 \
+  -pkeyopt ec_param_enc:named_curve \
+  -subj '/CN=localhost' \
+  -keyout certs/tls-key.pem \
+  -out   certs/tls-cert.pem \
+  -sha256 -days 3650 \
+  -addext "subjectAltName = DNS:localhost, IP:$PROXY_IP" \
+  -addext "extendedKeyUsage = serverAuth" \
+  -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
 ```
 
-- Start the tesla-http-proxy
+> Avoid the name `HTTPS_PROXY` here — it is a reserved environment variable that
+> tools like `curl` interpret as a proxy to route requests through.
 
-The tesla-http-proxy is a reverse proxy that will forward the requests to the Tesla API.  
-Start the tesla-http-proxy:  
+---
+
+## 2. Start the stack
 
 ```bash
-cd vehicle-command/cmd/tesla-http-proxy
-go build ./...
-# Copy cert.pem, key.pem, and private-key.pem to the same directory.
-./tesla-http-proxy -tls-key tls-key.pem -cert tls-cert.pem -port 4443 -key-file private-key.pem -verbose
-```
+git clone https://github.com/codesquadnest/tesla-smart-charger.git
+cd tesla-smart-charger
 
-The tesla-http-proxy should be running on port 4443.
-
-- Generate an OAuth token  
-The OAuth token creation is also based on the official [Tesla Fleet API documentation](https://developer.tesla.com/docs/fleet-api/authentication/third-party-tokens):
-
-```bash
-# Authorization code token request
-CLIENT_ID=$CLIENT_ID
-CLIENT_SECRET=$CLIENT_SECRET
-AUDIENCE="https://fleet-api.prd.eu.vn.cloud.tesla.com"
-CODE=$CODE # The code generated in step 5 or generate a new code using the same URL.
-CALLBACK="https://example.com/done.html"
-curl --request POST \
---header 'Content-Type: application/x-www-form-urlencoded' \
---data-urlencode 'grant_type=authorization_code' \
---data-urlencode "client_id=$CLIENT_ID" \
---data-urlencode "client_secret=$CLIENT_SECRET" \
---data-urlencode "code=$CODE" \
---data-urlencode "audience=$AUDIENCE" \
---data-urlencode "redirect_uri=$CALLBACK" \
-'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
-# Extract access_token and refresh_token from this response
-```
-
-The access token and refresh token should be used to authenticate the tesla-smart-charger.  
-Refresh token expires in 3 months, to get a new refresh token, use the following command:  
-
-```bash
-# Refresh token request
-export REFRESH_TOKEN=$REFRESH_TOKEN
-export CLIENT_ID=$CLIENT_ID
-curl --request POST \
---header 'Content-Type: application/x-www-form-urlencoded' \
---data-urlencode 'grant_type=refresh_token' \
---data-urlencode "client_id=$CLIENT_ID" \
---data-urlencode "refresh_token=$REFRESH_TOKEN" \
-'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
-```
-
-- The Tesla application is now setup and ready to be tested with the tesla-http-proxy  
-Test the Tesla application with the tesla-http-proxy:
-
-```bash
-export TESLA_AUTH_TOKEN=$access_token
-export VIN=$VIN
-curl --cacert tls-cert.pem \
-    --header "Authorization: Bearer $TESLA_AUTH_TOKEN" \
-    "https://localhost:4443/api/1/vehicles/$VIN/vehicle_data" \
-    | jq -r .
-
-# The response should be the vehicle data.
-```
-
-> The Tesla application is now setup and ready to be used with the tesla-smart-charger.
-
-### Configuration
-
-From the previous steps, you should have the following information:
-
-- `client_id`
-- `client_secret`
-- `public_key.pem`
-- `private_key.pem`
-- `access_token`
-- `refresh_token`
-- `VIN`
-
-Fill the configuration `config.json` with your specific values:
-
-- `homeMaxAmps`: Available power in amps that is available for the house.
-- `chargerMaxAmps`: Maximum power in amps that the charger can use.
-- `chargerMinAmps`: Minimum power in amps that the charger can use.
-- `downStepPercentage`: Percentage of power reduction when overload is detected.
-- `upStepPercentage`: Percentage of power increase when overload is not detected.
-- `sleepTimeSecs`: Time in seconds between each check after overload is detected.
-- `energyMonitorIp`: IP address or hostname of the Energy Monitor.
-- `energyMonitorType`: Type of Energy Monitor. Currently only `shelly-em` is supported.
-- `hostIp`: IP address of the host machine. This is used to send overload notifications to the Energy Monitor thread.
-- `apiPort`: Port where the Tesla Smart Charger API will be exposed.
-- `teslaVehicleId`: Vehicle ID obtained from the Tesla API.
-- `teslaAccessToken`: Access token obtained from the Tesla API.
-- `teslaRefreshToken`: Refresh token obtained from the Tesla API.
-- `teslaHttpProxy`: HTTP proxy to use when connecting to the Tesla API.
-- `teslaClientId`: Client ID obtained from the Tesla API.
-
-The configuration file is located at `config.json` and should look like this:
-
-```json
-{
-  "homeMaxAmps": 30.0,
-  "chargerMaxAmps": 25.0,
-  "chargerMinAmps": 6.0,
-  "downStepPercentage": 0.5,
-  "upStepPercentage": 0.25,
-  "sleepTimeSecs": 30,
-  "energyMonitorIp": "ip-or-hostname",
-  "energyMonitorType": "shelly-em",
-  "hostIp": "ip-address",
-  "apiPort": 8000,
-  "teslaVehicleId": "12345678901234567",
-  "teslaAccessToken": "12345678901234567",
-  "teslaRefreshToken": "12345678901234567",
-  "teslaHttpProxy": "http://localhost:4443",
-  "teslaClientId": "12345678901234567"
-}
-```
-
-**Note 1:** When assigning a different port, make sure to update the `Dockerfile` and set the `apiPort` port in `config.json` to the same value.
-
-**Note 2:** If you choose to copy the certificates to a different location, make sure to update the `Dockerfile.tesla-smart-charger` and set the environment `TESLA_CERTS_DIR` to the same value.
-
-### Execution
-
-Run the Tesla Smart Charger:
-
-```bash
+# Make sure certs/ contains: private-key.pem, public-key.pem, tls-key.pem, tls-cert.pem
 docker compose up --build -d
 ```
 
-To test your configuration you can call (GET) `http://<tesla-smart-charger-ip>:<port>/config`
+The dashboard is served at `http://<server-ip>:8000`.
 
-Another way to test the configuration is accessing `http://<tesla-smart-charger-ip>:<port>` in a web browser. You should see the configuration values which can be updated and there is also an option to fetch
-the list of overloads detected.
+---
 
-The default behavior, with no extra configuration, is that the charging amps will be reduced by the `downStepPercentage` configuration. For example, if `downStepPercentage` is set to 0.5, the charging amps will be configured to half of the current amps. If it's set to 0.25, it will be configured to 25% of the current amps.
+## 3. Onboarding wizard
 
-### Shutdown
+On first access the dashboard displays a **10-step setup wizard**.  No manual
+JSON editing is needed.
 
-To stop the Tesla Smart Charger:
+| Step | What you configure |
+|------|-------------------|
+| 1 — Welcome | Overview |
+| 2 — Region & Voltage | Tesla Fleet API region (EU / NA / AP) and grid voltage |
+| 3 — Tesla Application | Client ID, Client Secret, OAuth redirect URI, and HTTP proxy URL (where `tesla-http-proxy` is reachable) |
+| 4 — Authorize | Opens Tesla sign-in in a popup; tokens are captured automatically. If your reverse proxy serves a static callback page instead of forwarding to the backend, paste the callback URL manually or use the hash-fallback method |
+| 5 — Select Vehicles | Pick which vehicles from your Tesla account to manage |
+| 6 — Charger Settings | Per-vehicle max/min charge amps |
+| 7 — Energy Monitor | Shelly EM IP address and type — "Test connection" probes the device through the backend (no CORS issues) |
+| 8 — Circuit & Strategy | Home circuit limit, overload strategy (proportional or priority) |
+| 9 — Security | Optional HTTP Basic Auth for the dashboard |
+| 10 — Done | Review and apply — config is written to `config/system.json` and `config/vehicles.json` |
+
+After the wizard completes the application is fully operational.
+
+---
+
+## 4. Settings reference
+
+These settings can be changed after onboarding via the dashboard **Settings** page (`GET /api/v1/config`) or directly in `config/system.json`.
+
+### System
+
+| Setting | Description |
+|---------|-------------|
+| `region` | Tesla Fleet API region: `eu`, `na`, or `ap`. Matches your vehicle's market. |
+| `voltage` | Home grid voltage (V). Used to convert power (watts) to current (amps). |
+| `hostIp` | IP address the API server binds to. |
+| `apiPort` | TCP port the API server listens on. |
+
+### Energy Monitor
+
+| Setting | Description |
+|---------|-------------|
+| `energyMonitorType` | Hardware model. Currently only `shelly_em` is supported. |
+| `energyMonitorIp` | IP address of the energy monitor on the local network. |
+
+### Circuit & Strategy
+
+| Setting | Description |
+|---------|-------------|
+| `homeMaxAmps` | Main breaker or circuit limit (A). Total consumption will not be allowed to exceed this. |
+| `overloadStrategy` | How to distribute load reduction: `proportional` (all vehicles equally) or `priority` (lowest-priority vehicle first). |
+| `sleepTimeSecs` | Seconds between adjustment steps during an overload event. Lower values react faster but may cause more API calls. |
+| `downStepPercentage` | First-response factor when overload is detected (0.1–1.0). Current charge amps are multiplied by this (e.g. 0.5 = halve). |
+| `upStepPercentage` | Factor used when ramping charge back up after overload clears (0.0–1.0). Applied to the amp range (max - min). |
+| `maxSessionDuration` | Maximum seconds a supervised overload session can run before automatically ending. Prevents the car from staying stuck at a reduced limit. |
+
+### Per-Vehicle (configured in `config/vehicles.json`)
+
+| Setting | Description |
+|---------|-------------|
+| `chargerMaxAmps` | Maximum charging current (A) for this vehicle. The handler will not exceed this. |
+| `chargerMinAmps` | Minimum charging current (A). The handler will not reduce below this. |
+| `priority` | Overload priority (1 = highest). Higher numbers are reduced first in priority mode. |
+
+### Security
+
+| Setting | Description |
+|---------|-------------|
+| `auth.enabled` | Enable HTTP Basic Auth for the dashboard and API. |
+| `auth.username` | Basic Auth username. |
+| `auth.passwordHash` | Stored password hash (never returned by the API). |
+
+---
+
+## 5. Directory layout
+
+```
+tesla-smart-charger/
+├── config/
+│   ├── system.json     ← system-wide settings (written by wizard)
+│   └── vehicles.json   ← per-vehicle credentials & settings (written by wizard)
+├── data/               ← SQLite event database
+└── certs/              ← TLS + vehicle command keys
+```
+
+These directories are mounted as Docker volumes so data survives container
+rebuilds.
+
+---
+
+## 5. Running the energy monitor
+
+The energy monitor (Shelly EM poller) is enabled by the `-m` / `--monitor` flag.
+
+- **Docker:** it is **already enabled** — the image's default command is
+  `tesla-smart-charger --monitor --verbose`, so no action is needed.
+- **Running directly with `uv`:** pass the flag yourself:
+
+  ```bash
+  uv run tesla-smart-charger -m
+  ```
+
+When consumption exceeds `homeMaxAmps`, the monitor triggers overload handling
+directly (throttling charging vehicles); no internal HTTP call is made.
+
+---
+
+## 6. Stopping the stack
 
 ```bash
 docker compose down
 ```
+
+---
+
+## 7. Local development
+
+A `docker-compose.override.example.yml` is included for rapid development.  It
+replaces the static dashboard bundle with a live Vite dev server (port 5173)
+and runs the Python backend with `--reload`.  Copy it to the (git-ignored)
+`docker-compose.override.yml`, which Compose then merges automatically:
+
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+docker compose up       # backend + dashboard only — no certs needed
+# Dashboard hot-reload: http://localhost:5173
+# API:                  http://localhost:8000
+```
+
+The dev override puts `tesla-http-proxy` behind a **`proxy` profile**, so it is
+**not started by default** — you can build the UI and walk through onboarding
+Steps 1–4 with no certificates at all. When you need the proxy (Step 5 onward),
+generate certs into `certs/` (see [§1.2](#12-generate-keys) and
+[§1.4](#14-generate-a-tls-certificate-for-the-http-proxy)) and start it too:
+
+```bash
+docker compose --profile proxy up
+```
+
+> Requires Docker Compose ≥ 2.24 (for the `!reset` tag used to drop the proxy
+> dependency in dev).
+
+Or run the services separately without Docker:
+
+```bash
+# Terminal 1 — backend
+uv run tesla-smart-charger -m
+
+# Terminal 2 — dashboard
+cd dashboard
+npm install
+npm run dev             # http://localhost:5173
+```
+
+Vite proxies `/api`, `/auth`, and `/overload` to the backend, so no CORS
+configuration is needed during development. The proxy target defaults to
+`http://localhost:8000` and can be overridden with the `VITE_API_PROXY_TARGET`
+environment variable — the `docker-compose.override.yml` sets it to
+`http://tesla-smart-charger:8000` so the dashboard container reaches the backend
+container (inside Docker, `localhost` would point at the dashboard container
+itself).
+
+---
+
+## 8. Troubleshooting
+
+### `tesla-http-proxy` keeps restarting — `open /app/certs/private-key.pem: no such file or directory`
+
+The proxy can't find its certificates. It needs **four** files in `certs/`:
+`private-key.pem`, `public-key.pem` (see [§1.2](#12-generate-keys)) and
+`tls-key.pem`, `tls-cert.pem` (see [§1.4](#14-generate-a-tls-certificate-for-the-http-proxy)).
+Generate all four, then `docker compose up -d tesla-http-proxy`. Certificates are
+**not** committed to the repo, so they must be generated on each host that runs
+the stack.
+
+In **dev**, you can avoid this entirely: the dev override keeps the proxy behind
+the `proxy` profile, so `docker compose up` starts backend + dashboard only (no
+certs needed). Add `--profile proxy` once you need the proxy — see
+[§7](#7-local-development).
+
+### Dashboard shows `502` / `/api/v1/status` fails, and onboarding "refreshes" every ~10s
+
+The dashboard polls `GET /api/v1/status` every 10 seconds; a `502` means the
+browser (or Vite's dev proxy) can't reach the backend on port `8000`.
+
+- **Production:** confirm the `tesla-smart-charger` container is up and healthy
+  (`docker compose ps`, `docker compose logs tesla-smart-charger`).
+- **Dev (Vite in its own container):** ensure `VITE_API_PROXY_TARGET` points at
+  the backend **service** (`http://tesla-smart-charger:8000`), not `localhost` —
+  see [§7](#7-local-development). `localhost:8000` inside the dashboard container
+  is the dashboard itself.
+
+### `GET /` returns `503 — Dashboard not built`
+
+The backend serves the compiled dashboard from `dashboard/dist/`. Build it
+(`cd dashboard && npm install && npm run build`) or use Docker, which builds it
+automatically. Without a build there is no SPA to serve.
+
+### Onboarding never finishes / keeps returning to Step 1
+
+Onboarding is only marked complete after **all** of Step 10's writes succeed
+(system config → vehicles → auth → `configured: true`). If Step 10 shows an
+error, fix that cause and re-apply — the app intentionally does not mark itself
+configured on a partial save. A transient status-fetch failure alone no longer
+forces you back into the wizard.
+
+If clicking "Go to Dashboard" redirects back to `/onboarding`, the status query
+may still return stale cached data. The fix awaits the refetch before navigating
+— rebuild the dashboard image if you're on an older build.
+
+### Authorisation popup shows a static page or "Not Found"
+
+Your reverse proxy may serve a static file for the callback URL instead of
+forwarding to the backend. When the popup cannot reach
+`/auth/callback` on the backend, Step 4 provides a **manual paste** fallback:
+copy the callback URL from the popup's address bar, paste it into the input
+field, and click "Verify". The backend extracts the OAuth code and issuer
+from the URL and completes the exchange.
+
+### Tesla sign-in works but vehicle data / commands fail (proxy is up)
+
+Getting tokens (Step 4) talks to Tesla directly, but reading vehicle data and
+sending charge commands go through `tesla-http-proxy`, which requires your
+**public key to be hosted** at
+`https://<your-domain>/.well-known/appspecific/com.tesla.3p.public-key.pem` and
+your **domain registered** with the Fleet API — see
+[§1.2](#12-generate-keys) and [§1.3](#13-register-your-app-with-tesla-one-time-partner-step).

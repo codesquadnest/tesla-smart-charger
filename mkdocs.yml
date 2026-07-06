@@ -37,7 +37,10 @@ theme:
 plugins:
   - mermaid2
 
-nav: []
+nav:
+  - Home: index.md
+  - Quick start: quick-start.md
+  - Migrating v1 → v2: migration.md
 
 # to navigate with `/site` content correctly
 use_directory_urls: false
