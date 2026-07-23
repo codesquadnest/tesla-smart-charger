@@ -20,6 +20,7 @@ class ShellyEMController(EnergyMonitorController):
 
         Args:
             host (str): The IP address or hostname of the Shelly EM device.
+
         """
         self.type = "shelly_em"
         self.state = constants.EM_CONTROLLER_STATE_IDLE
@@ -35,6 +36,7 @@ class ShellyEMController(EnergyMonitorController):
 
         Returns:
             str: The current state of the controller.
+
         """
         return self.state
 
@@ -44,6 +46,7 @@ class ShellyEMController(EnergyMonitorController):
 
         Args:
             state (str): The new state of the controller.
+
         """
         self.state = state
 
@@ -61,13 +64,15 @@ class ShellyEMController(EnergyMonitorController):
 
         Raises:
             ValueError: If there is an error retrieving the consumption data.
+
         """
         try:
             response = requests.get(self.url, timeout=10)
             response.raise_for_status()  # Raises an HTTPError for bad responses
             data = response.json()
         except requests.RequestException as e:
-            raise ValueError(f"Error getting consumption: {e}") from e
+            msg = f"Error getting consumption: {e}"
+            raise ValueError(msg) from e
 
         # Save the last known consumption
         self.last_consumption = self.consumption

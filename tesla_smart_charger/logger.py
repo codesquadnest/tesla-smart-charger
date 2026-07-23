@@ -1,13 +1,14 @@
+"""Logging setup for the Tesla Smart Charger application."""
+
 import logging
 import os
 import sys
-
 
 DEFAULT_LOG_FILE = "tesla-smart-charger.log"
 
 
 def get_logger(
-    name: str = __name__, verbose: bool = False, log_file: str = DEFAULT_LOG_FILE
+    name: str = __name__, *, verbose: bool = False, log_file: str = DEFAULT_LOG_FILE
 ) -> logging.Logger:
     """
     Set up a logger instance and return it.
@@ -19,6 +20,7 @@ def get_logger(
 
     Returns:
         logger: logging.Logger - the logger instance
+
     """
     if "TSM_VERBOSE" in os.environ:
         verbose = True

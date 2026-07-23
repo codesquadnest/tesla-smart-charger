@@ -34,9 +34,11 @@ class TeslaAPI:
     ----------
     vehicle:
         The vehicle configuration containing credentials and proxy settings.
+
     """
 
     def __init__(self, vehicle: VehicleConfig) -> None:
+        """Build a client bound to a single vehicle's config and credentials."""
         self.vehicle = vehicle
 
     # ─── Internal helpers ──────────────────────────────────────────────────────
@@ -47,14 +49,17 @@ class TeslaAPI:
 
     @property
     def _fleet_api_url(self) -> str:
-        """The Fleet API base URL for this vehicle's region.
+        """
+        The Fleet API base URL for this vehicle's region.
 
         Uses the proxy URL directly if it's already a Fleet API URL
         (set by users who don't run the tesla-http-proxy), otherwise
         derives it from the region.
         """
         proxy = self._proxy
-        if any(proxy.startswith(url) for url in constants.TESLA_FLEET_API_URLS.values()):
+        if any(
+            proxy.startswith(url) for url in constants.TESLA_FLEET_API_URLS.values()
+        ):
             return proxy
         return constants.TESLA_FLEET_API_URLS.get(
             self.vehicle.region, constants.TESLA_AUDIENCE
@@ -64,11 +69,16 @@ class TeslaAPI:
         return {"Authorization": f"Bearer {self.vehicle.teslaAccessToken}"}
 
     def _tls(self) -> dict:
-        """mTLS certs — only sent when the proxy is NOT a direct Fleet API URL.
+        """
+        MTLS certs — only sent when the proxy is NOT a direct Fleet API URL.
+
         Server certificate verification is disabled because the proxy's self-
-        signed cert CN won't match the Docker service name (tesla-http-proxy)."""
+        signed cert CN won't match the Docker service name (tesla-http-proxy).
+        """
         proxy = self._proxy
-        if any(proxy.startswith(url) for url in constants.TESLA_FLEET_API_URLS.values()):
+        if any(
+            proxy.startswith(url) for url in constants.TESLA_FLEET_API_URLS.values()
+        ):
             return {}
         return {
             "verify": False,
@@ -92,7 +102,8 @@ class TeslaAPI:
         stop_max_attempt_number=5,
     )
     def get_vehicles(self) -> list:
-        """Return the list of Tesla vehicles linked to this OAuth token.
+        """
+        Return the list of Tesla vehicles linked to this OAuth token.
 
         Uses the Fleet API directly (Bearer token only, no mTLS), even
         when a tesla-http-proxy is configured — listing vehicles does
@@ -123,9 +134,10 @@ class TeslaAPI:
         vehicle_id = self.vehicle.teslaVehicleId
         if not vehicle_id:
             raise HTTPException(
-                status_code=400, detail="teslaVehicleId is not set on this vehicle config"
+                status_code=400,
+                detail="teslaVehicleId is not set on this vehicle config",
             )
-        tsc_logger.info(f"Requesting data for vehicle {vehicle_id}.")
+        tsc_logger.info("Requesting data for vehicle %s.", vehicle_id)
         try:
             r = requests.get(
                 f"{self._proxy}{constants.TESLA_API_VEHICLE_DATA_URL.format(id=vehicle_id)}",
@@ -151,7 +163,9 @@ class TeslaAPI:
         # Use the VIN (17 chars) for command URLs — the tesla-http-proxy rejects
         # numeric Fleet API IDs in command paths.
         vehicle_id = self.vehicle.vin or self.vehicle.teslaVehicleId
-        tsc_logger.info(f"Setting charge limit → {amp_limit}A for vehicle {vehicle_id}.")
+        tsc_logger.info(
+            "Setting charge limit → %sA for vehicle %s.", amp_limit, vehicle_id
+        )
         try:
             r = requests.post(
                 f"{self._proxy}{constants.TESLA_API_CHARGE_AMP_LIMIT_URL.format(id=vehicle_id)}",
@@ -200,7 +214,8 @@ class TeslaAPI:
             self.vehicle = self.vehicle.model_copy(
                 update={"teslaAccessToken": access, "teslaRefreshToken": refresh}
             )
-            return access, refresh
-        except requests.RequestException as exc:
-            tsc_logger.error(f"Token refresh failed for vehicle {self.vehicle.id}: {exc}")
+        except requests.RequestException:
+            tsc_logger.exception("Token refresh failed for vehicle %s", self.vehicle.id)
             return None
+        else:
+            return access, refresh

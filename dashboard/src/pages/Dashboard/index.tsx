@@ -113,28 +113,30 @@ function VehicleCard({ vehicle: v }: { vehicle: VehicleStatus }) {
           <p className="font-semibold text-slate-900">{v.name || 'Tesla Vehicle'}</p>
           {v.vin && <p className="text-xs text-slate-400">VIN: {v.vin}</p>}
         </div>
-        <OnlineBadge online={v.online} />
+        {v.pending ? <Spinner size={16} /> : <OnlineBadge online={v.online} />}
       </div>
 
       <div className="space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-slate-500">Charging</span>
           <span className="font-medium text-slate-900">
-            {v.chargingState ?? '—'}
+            {v.pending ? 'Fetching…' : (v.chargingState ?? '—')}
           </span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-slate-500">Current</span>
           <span className="font-medium text-slate-900">
-            {v.chargerActualCurrent != null
-              ? `${v.chargerActualCurrent} A`
-              : '—'}
+            {v.pending
+              ? 'Fetching…'
+              : v.chargerActualCurrent != null
+                ? `${v.chargerActualCurrent} A`
+                : '—'}
           </span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-slate-500">Battery</span>
           <span className="font-medium text-slate-900">
-            {v.batteryLevel != null ? `${v.batteryLevel}%` : '—'}
+            {v.pending ? 'Fetching…' : v.batteryLevel != null ? `${v.batteryLevel}%` : '—'}
           </span>
         </div>
 
