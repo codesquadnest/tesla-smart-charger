@@ -36,7 +36,9 @@ def create_energy_monitor_controller(
     host: str,
 ) -> EnergyMonitorController:
     """Create instances of EnergyMonitorController based on the implementation_type."""
-    from tesla_smart_charger.controllers import shelly_em_controller
+    # Imported locally to avoid a circular import: shelly_em_controller imports
+    # EnergyMonitorController from this module at module scope.
+    from tesla_smart_charger.controllers import shelly_em_controller  # noqa: PLC0415
 
     if implementation_type == "shelly_em":
         return shelly_em_controller.ShellyEMController(host)

@@ -3,10 +3,15 @@
 import json
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from tesla_smart_charger import logger
-from tesla_smart_charger.models import AuthConfig, SystemConfig, TeslaRegion, VehicleConfig
+from tesla_smart_charger.models import (
+    AuthConfig,
+    SystemConfig,
+    TeslaRegion,
+    VehicleConfig,
+)
 
 tsc_logger = logger.get_logger()
 
@@ -24,27 +29,32 @@ class AppConfig:
     """
 
     def __init__(self, config_dir: str = "config") -> None:
+        """Bind this manager to *config_dir* (not loaded until `load()` is called)."""
         self._config_dir = Path(config_dir)
         self._system_file = self._config_dir / "system.json"
         self._vehicles_file = self._config_dir / "vehicles.json"
         self._legacy_file = Path("config.json")
-        self._system: Optional[SystemConfig] = None
-        self._vehicles: List[VehicleConfig] = []
+        self._system: SystemConfig | None = None
+        self._vehicles: list[VehicleConfig] = []
 
     # ─── Properties ───────────────────────────────────────────────────────────
 
     @property
     def system(self) -> SystemConfig:
+        """Return the loaded system configuration."""
         if self._system is None:
-            raise RuntimeError("Configuration not loaded. Call load() first.")
+            msg = "Configuration not loaded. Call load() first."
+            raise RuntimeError(msg)
         return self._system
 
     @property
-    def vehicles(self) -> List[VehicleConfig]:
+    def vehicles(self) -> list[VehicleConfig]:
+        """Return the loaded list of vehicle configurations."""
         return self._vehicles
 
     @property
     def is_configured(self) -> bool:
+        """Return whether the onboarding wizard has been completed."""
         return self._system is not None and self._system.configured
 
     # ─── Load ─────────────────────────────────────────────────────────────────
@@ -70,8 +80,10 @@ class AppConfig:
         except FileNotFoundError:
             tsc_logger.info("system.json not found — using defaults.")
             self._system = SystemConfig()
-        except Exception as exc:
-            tsc_logger.error(f"Failed to load system.json: {exc}")
+        # Deliberately broad: any load/parse failure must fall back to
+        # defaults rather than prevent the app from starting.
+        except Exception:
+            tsc_logger.exception("Failed to load system.json")
             self._system = SystemConfig()
 
     def _load_vehicles(self) -> None:
@@ -80,19 +92,25 @@ class AppConfig:
                 raw = json.load(f)
             self._vehicles = [VehicleConfig(**v) for v in raw]
         except FileNotFoundError:
-            tsc_logger.info("vehicles.json not found — starting with empty vehicle list.")
+            tsc_logger.info(
+                "vehicles.json not found — starting with empty vehicle list."
+            )
             self._vehicles = []
-        except Exception as exc:
-            tsc_logger.error(f"Failed to load vehicles.json: {exc}")
+        # Deliberately broad: any load/parse failure must fall back to
+        # an empty vehicle list rather than prevent the app from starting.
+        except Exception:
+            tsc_logger.exception("Failed to load vehicles.json")
             self._vehicles = []
 
     def _migrate_from_legacy(self) -> None:
         """Migrate the old flat config.json → system.json + vehicles.json."""
         try:
             with self._legacy_file.open("r") as f:
-                old: Dict[str, Any] = json.load(f)
-        except Exception as exc:
-            tsc_logger.error(f"Migration failed — could not read config.json: {exc}")
+                old: dict[str, Any] = json.load(f)
+        # Deliberately broad: a corrupt/unreadable legacy file must fall back
+        # to defaults rather than prevent the app from starting.
+        except Exception:
+            tsc_logger.exception("Migration failed — could not read config.json")
             self._system = SystemConfig()
             return
 
@@ -158,20 +176,23 @@ class AppConfig:
 
     # ─── Vehicle CRUD ──────────────────────────────────────────────────────────
 
-    def get_vehicle(self, vehicle_id: str) -> Optional[VehicleConfig]:
+    def get_vehicle(self, vehicle_id: str) -> VehicleConfig | None:
+        """Return the vehicle with *vehicle_id*, or None if not found."""
         for v in self._vehicles:
             if v.id == vehicle_id:
                 return v
         return None
 
     def add_vehicle(self, vehicle: VehicleConfig) -> VehicleConfig:
+        """Append *vehicle* to the vehicle list and persist it."""
         self._vehicles.append(vehicle)
         self.save_vehicles()
         return vehicle
 
     def update_vehicle(
-        self, vehicle_id: str, updates: Dict[str, Any]
-    ) -> Optional[VehicleConfig]:
+        self, vehicle_id: str, updates: dict[str, Any]
+    ) -> VehicleConfig | None:
+        """Apply *updates* to the vehicle with *vehicle_id* and persist it."""
         for i, v in enumerate(self._vehicles):
             if v.id == vehicle_id:
                 updated = v.model_copy(update=updates)
@@ -181,6 +202,7 @@ class AppConfig:
         return None
 
     def remove_vehicle(self, vehicle_id: str) -> bool:
+        """Remove the vehicle with *vehicle_id*; return whether it was found."""
         original_len = len(self._vehicles)
         self._vehicles = [v for v in self._vehicles if v.id != vehicle_id]
         if len(self._vehicles) < original_len:
@@ -199,7 +221,7 @@ class AppConfig:
 
     # ─── System helpers ────────────────────────────────────────────────────────
 
-    def update_system(self, updates: Dict[str, Any]) -> SystemConfig:
+    def update_system(self, updates: dict[str, Any]) -> SystemConfig:
         """Merge *updates* into the system config and persist."""
         current = self._system.model_dump()
         # Handle nested auth updates

@@ -1,9 +1,7 @@
 """Configurator class for Tesla Smart Charger."""
 
 import json
-
 from pathlib import Path
-from typing import Optional
 
 from tesla_smart_charger import constants
 
@@ -29,7 +27,7 @@ class ChargerConfig:
 
         """
         self.config_file = Path(config_file)
-        self.config: Optional[dict] = None
+        self.config: dict | None = None
 
     def load_config(self) -> dict:
         """
@@ -77,7 +75,7 @@ class ChargerConfig:
         ----
             config (dict): The configuration.
 
-        Returns
+        Returns:
         -------
             dict: The configuration.
 
@@ -93,7 +91,7 @@ class ChargerConfig:
                 return {"error": "Failed to load config after setting it."}
         except ValueError as error:
             return {"error": f"Config is not valid: {error}"}
-        except Exception as error:
+        except (OSError, TypeError) as error:
             return {"error": f"Failed to set config: {error}"}
         else:
             return self.config

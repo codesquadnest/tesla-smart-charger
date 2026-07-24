@@ -45,6 +45,9 @@ export interface VehicleStatus {
   chargingState: string | null
   chargerActualCurrent: number | null
   batteryLevel: number | null
+  // True while telemetry has never been fetched yet and a background
+  // refresh is in flight on the backend.
+  pending: boolean
 }
 
 /** Overall system status — GET /api/v1/status. */

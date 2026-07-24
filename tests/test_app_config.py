@@ -9,22 +9,21 @@ import pytest
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.models import OverloadStrategy, TeslaRegion, VehicleConfig
 
-
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def tmp_config_dir(tmp_path: Path) -> Path:
-    """A temporary directory to use as the config directory."""
+    """Return a temporary directory to use as the config directory."""
     return tmp_path / "config"
 
 
 @pytest.fixture
 def cfg(tmp_config_dir: Path) -> AppConfig:
-    """A freshly loaded AppConfig backed by a temporary directory (no migration)."""
+    """Return a freshly loaded AppConfig backed by a temp directory (no migration)."""
     app = AppConfig(str(tmp_config_dir))
     # Point legacy file to a path that never exists so migration is never triggered
-    app._legacy_file = tmp_config_dir / "no_legacy_config.json"  # noqa: SLF001
+    app._legacy_file = tmp_config_dir / "no_legacy_config.json"
     app.load()
     return app
 
@@ -35,7 +34,7 @@ def cfg(tmp_config_dir: Path) -> AppConfig:
 def test_load_creates_defaults_when_no_files(tmp_config_dir: Path) -> None:
     """First load with no existing files should produce sensible defaults."""
     app = AppConfig(str(tmp_config_dir))
-    app._legacy_file = tmp_config_dir / "no_legacy.json"  # noqa: SLF001
+    app._legacy_file = tmp_config_dir / "no_legacy.json"
     app.load()
 
     assert app.system.homeMaxAmps == 30.0
@@ -147,7 +146,7 @@ def test_migration_from_legacy_config(tmp_path: Path) -> None:
     config_dir = tmp_path / "config"
     # Patch _legacy_file to point to tmp_path/config.json
     app = AppConfig(str(config_dir))
-    app._legacy_file = legacy  # noqa: SLF001
+    app._legacy_file = legacy
 
     app.load()
 
@@ -173,11 +172,13 @@ def test_migration_skipped_when_system_json_exists(tmp_path: Path) -> None:
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     # Write a valid system.json — migration should be skipped
-    (config_dir / "system.json").write_text(json.dumps({"homeMaxAmps": 10.0, "configured": True}))
+    (config_dir / "system.json").write_text(
+        json.dumps({"homeMaxAmps": 10.0, "configured": True})
+    )
     (config_dir / "vehicles.json").write_text("[]")
 
     app = AppConfig(str(config_dir))
-    app._legacy_file = legacy  # noqa: SLF001
+    app._legacy_file = legacy
     app.load()
 
     # system.json's value wins (migration was skipped)
@@ -212,6 +213,7 @@ def test_add_vehicle(cfg: AppConfig) -> None:
 
 
 def test_get_vehicle_found(cfg: AppConfig) -> None:
+    """get_vehicle returns the matching vehicle by id."""
     v = cfg.add_vehicle(VehicleConfig(name="Model S"))
     found = cfg.get_vehicle(v.id)
     assert found is not None
@@ -219,10 +221,12 @@ def test_get_vehicle_found(cfg: AppConfig) -> None:
 
 
 def test_get_vehicle_not_found(cfg: AppConfig) -> None:
+    """get_vehicle returns None for an unknown id."""
     assert cfg.get_vehicle("nonexistent-id") is None
 
 
 def test_update_vehicle(cfg: AppConfig) -> None:
+    """update_vehicle applies and persists a partial update."""
     v = cfg.add_vehicle(VehicleConfig(name="Roadster", chargerMaxAmps=16.0))
     updated = cfg.update_vehicle(v.id, {"chargerMaxAmps": 32.0, "name": "Roadster 2"})
 
@@ -234,22 +238,28 @@ def test_update_vehicle(cfg: AppConfig) -> None:
 
 
 def test_update_vehicle_returns_none_for_unknown_id(cfg: AppConfig) -> None:
+    """update_vehicle returns None for an unknown id."""
     result = cfg.update_vehicle("no-such-id", {"name": "Ghost"})
     assert result is None
 
 
 def test_remove_vehicle(cfg: AppConfig) -> None:
+    """remove_vehicle deletes the vehicle and returns True."""
     v = cfg.add_vehicle(VehicleConfig(name="Cybertruck"))
     assert cfg.remove_vehicle(v.id) is True
     assert cfg.vehicles == []
 
 
 def test_remove_vehicle_returns_false_for_unknown_id(cfg: AppConfig) -> None:
+    """remove_vehicle returns False for an unknown id."""
     assert cfg.remove_vehicle("ghost-id") is False
 
 
 def test_update_vehicle_tokens(cfg: AppConfig) -> None:
-    v = cfg.add_vehicle(VehicleConfig(teslaAccessToken="old_at", teslaRefreshToken="old_rt"))
+    """update_vehicle_tokens atomically updates the access/refresh tokens."""
+    v = cfg.add_vehicle(
+        VehicleConfig(teslaAccessToken="old_at", teslaRefreshToken="old_rt")
+    )
     cfg.update_vehicle_tokens(v.id, "new_at", "new_rt")
     updated = cfg.get_vehicle(v.id)
     assert updated is not None
@@ -258,19 +268,22 @@ def test_update_vehicle_tokens(cfg: AppConfig) -> None:
 
 
 def test_multiple_vehicles(cfg: AppConfig) -> None:
+    """Multiple vehicles can be added and are all retained."""
     cfg.add_vehicle(VehicleConfig(name="Car A", priority=1))
     cfg.add_vehicle(VehicleConfig(name="Car B", priority=2))
     cfg.add_vehicle(VehicleConfig(name="Car C", priority=3))
 
     assert len(cfg.vehicles) == 3
     names = [v.name for v in cfg.vehicles]
-    assert "Car A" in names and "Car C" in names
+    assert "Car A" in names
+    assert "Car C" in names
 
 
 # ─── update_system ────────────────────────────────────────────────────────────
 
 
 def test_update_system_merges_fields(cfg: AppConfig) -> None:
+    """update_system merges given fields while leaving others unchanged."""
     original_voltage = cfg.system.voltage
     cfg.update_system({"homeMaxAmps": 99.0})
 
@@ -279,7 +292,10 @@ def test_update_system_merges_fields(cfg: AppConfig) -> None:
 
 
 def test_update_system_nested_auth(cfg: AppConfig) -> None:
-    cfg.update_system({"auth": {"enabled": True, "username": "admin", "passwordHash": "hash123"}})
+    """update_system merges nested auth fields rather than replacing the dict."""
+    cfg.update_system(
+        {"auth": {"enabled": True, "username": "admin", "passwordHash": "hash123"}}
+    )
 
     assert cfg.system.auth.enabled is True
     assert cfg.system.auth.username == "admin"
@@ -287,6 +303,7 @@ def test_update_system_nested_auth(cfg: AppConfig) -> None:
 
 
 def test_mark_configured(cfg: AppConfig) -> None:
+    """mark_configured sets configured=True and persists it."""
     assert cfg.system.configured is False
     cfg.mark_configured()
     assert cfg.system.configured is True

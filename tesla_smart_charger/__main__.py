@@ -10,9 +10,9 @@ import asyncio
 import atexit
 import sys
 import threading
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -20,11 +20,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from tesla_smart_charger import constants, logger
+from tesla_smart_charger import constants, logger, utils
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.cron import em_cron, token_cron
 from tesla_smart_charger.handlers import overload_handler
+from tesla_smart_charger.models import VehicleConfig
 from tesla_smart_charger.routes import (
     auth_routes,
     config_routes,
@@ -32,6 +33,7 @@ from tesla_smart_charger.routes import (
     status_routes,
     vehicle_routes,
 )
+from tesla_smart_charger.tesla_api import TeslaAPI
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 
@@ -47,14 +49,14 @@ app_config.load()
 stop_event = threading.Event()
 
 
-def _get_thread(name: str) -> Optional[threading.Thread]:
+def _get_thread(name: str) -> threading.Thread | None:
     for t in threading.enumerate():
         if t.name == name:
             return t
     return None
 
 
-def _start_thread(target, name: str, *extra_args) -> None:
+def _start_thread(target: Callable[..., None], name: str, *extra_args: object) -> None:
     t = threading.Thread(
         target=target, args=(stop_event, *extra_args), name=name, daemon=True
     )
@@ -68,6 +70,7 @@ def _monitor_active() -> bool:
 
 # ─── Database initialisation ───────────────────────────────────────────────────
 
+
 def _init_db(db_type: str) -> None:
     constants.DB_TYPE = db_type
     try:
@@ -77,15 +80,19 @@ def _init_db(db_type: str) -> None:
         ctrl.initialize_db()
         ctrl.close_connection()
         tsm_logger.info("Database initialised (%s).", db_type)
-    except Exception as exc:
-        tsm_logger.error("Database initialisation failed: %s", exc)
+    # Deliberately broad: any failure here is fatal at startup and must be
+    # logged before exiting, regardless of the underlying cause.
+    except Exception:
+        tsm_logger.exception("Database initialisation failed")
         sys.exit(1)
 
 
 # ─── FastAPI lifespan ──────────────────────────────────────────────────────────
 
+
 @asynccontextmanager
-async def lifespan(application: FastAPI):  # noqa: ARG001
+async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
+    """Start background cron threads on startup and join them on shutdown."""
     tsm_logger.info("Tesla Smart Charger starting up.")
     _start_thread(token_cron.start_cron_token, "tsc_token_cron_thread", app_config)
     yield
@@ -129,6 +136,7 @@ app.include_router(history_routes.router)
 
 # ─── Legacy endpoints (kept for backward compatibility) ───────────────────────
 
+
 @app.get("/overload")
 def overload() -> JSONResponse:
     """
@@ -144,7 +152,10 @@ def overload() -> JSONResponse:
 
 @app.post("/underload")
 def underload() -> JSONResponse:
-    return JSONResponse({"msg": "underload session not yet implemented"}, status_code=501)
+    """Return a placeholder response for the not-yet-implemented underload endpoint."""
+    return JSONResponse(
+        {"msg": "underload session not yet implemented"}, status_code=501
+    )
 
 
 # ─── Static files — React dashboard ───────────────────────────────────────────
@@ -165,7 +176,10 @@ def serve_index() -> FileResponse:
     legacy = Path("tesla_smart_charger/website/index.html")
     if legacy.exists():
         return FileResponse(str(legacy))
-    raise HTTPException(status_code=503, detail="Dashboard not built. Run: cd dashboard && npm install && npm run build")
+    raise HTTPException(
+        status_code=503,
+        detail="Dashboard not built. Run: cd dashboard && npm install && npm run build",
+    )
 
 
 @app.get("/{full_path:path}")
@@ -187,6 +201,7 @@ def spa_catch_all(full_path: str) -> FileResponse:
 
 # ─── Exit handler ─────────────────────────────────────────────────────────────
 
+
 def _exit_handler() -> None:
     tsm_logger.info("Exit handler: cleanup complete.")
 
@@ -196,7 +211,19 @@ atexit.register(_exit_handler)
 
 # ─── CLI entry point ───────────────────────────────────────────────────────────
 
+
+def _print_tesla_vehicles(vehicle: VehicleConfig) -> None:
+    """Print the Tesla vehicles linked to *vehicle*'s OAuth token, or log on failure."""
+    try:
+        api = TeslaAPI(vehicle)
+        remote = api.get_vehicles()
+        utils.show_vehicles(remote)
+    except Exception:
+        tsm_logger.exception("Could not fetch vehicles for %s", vehicle.id)
+
+
 def main() -> None:
+    """Parse CLI args and either print the vehicle list or start the server."""
     parser = argparse.ArgumentParser(
         description="Tesla Smart Charger",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -211,7 +238,9 @@ def main() -> None:
         nargs="?",
         help="Print vehicle list from Tesla API and exit",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", default=constants.VERBOSE)
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", default=constants.VERBOSE
+    )
 
     args = parser.parse_args()
 
@@ -223,22 +252,16 @@ def main() -> None:
         if not vehicles_list:
             print("No vehicles configured yet. Complete the onboarding wizard first.")
             sys.exit(0)
-        from tesla_smart_charger import utils
-        from tesla_smart_charger.tesla_api import TeslaAPI
-
         for v in vehicles_list:
-            try:
-                api = TeslaAPI(v)
-                remote = api.get_vehicles()
-                utils.show_vehicles(remote)
-            except Exception as exc:
-                tsm_logger.error("Could not fetch vehicles for %s: %s", v.id, exc)
+            _print_tesla_vehicles(v)
         sys.exit(0)
 
     _init_db(args.database)
 
     if args.monitor:
-        _start_thread(em_cron.start_cron_monitor, "tsc_energy_monitor_thread", app_config)
+        _start_thread(
+            em_cron.start_cron_monitor, "tsc_energy_monitor_thread", app_config
+        )
 
     uvicorn.run(app=app, host="0.0.0.0", port=args.port)
 

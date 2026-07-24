@@ -19,7 +19,7 @@ import secrets
 import threading
 import time
 import urllib.parse
-from typing import Any, Dict, Optional
+from typing import Annotated, Any
 
 import requests
 from fastapi import APIRouter, HTTPException, Query
@@ -28,23 +28,25 @@ from pydantic import BaseModel
 
 from tesla_smart_charger import constants, logger
 from tesla_smart_charger.app_config import AppConfig
+from tesla_smart_charger.models import VehicleConfig
+from tesla_smart_charger.tesla_api import TeslaAPI
 
 tsc_logger = logger.get_logger()
 
 router = APIRouter(tags=["auth"])
 
-_app_config: Optional[AppConfig] = None
+_app_config: AppConfig | None = None
 
 # In-memory PKCE state store: state_token → {code_verifier, vehicle_id, expires_at}
 # Guarded by _oauth_sessions_lock — concurrent /auth/start and /auth/callback
 # requests run in FastAPI's threadpool and mutate this dict.
-_oauth_sessions: Dict[str, Dict[str, Any]] = {}
+_oauth_sessions: dict[str, dict[str, Any]] = {}
 _oauth_sessions_lock = threading.Lock()
 SESSION_TTL = 600  # 10 minutes
 
 # Completed OAuth results keyed by state so the frontend can retrieve them
 # via a manual paste-URL fallback when postMessage / hash delivery fails.
-_oauth_results: Dict[str, Dict[str, Any]] = {}
+_oauth_results: dict[str, dict[str, Any]] = {}
 _oauth_results_lock = threading.Lock()
 RESULT_TTL = 300  # 5 minutes
 
@@ -62,14 +64,17 @@ _ALLOWED_TOKEN_ISSUERS = (
 
 
 def init(app_config: AppConfig) -> None:
+    """Inject the shared AppConfig instance used by this router."""
     global _app_config
     _app_config = app_config
 
 
 def _validate_proxy_url(proxy_url: str) -> None:
     """
-    Reject obviously unsafe proxy URLs before they are used to build outbound,
-    token-bearing requests. Requires an http/https scheme and a host.
+    Reject obviously unsafe proxy URLs.
+
+    Applied before they are used to build outbound, token-bearing requests.
+    Requires an http/https scheme and a host.
 
     Also rejects loopback / link-local IP addresses to limit SSRF surface,
     while allowing private (RFC1918) IPs since the proxy typically runs on
@@ -93,10 +98,13 @@ def _validate_proxy_url(proxy_url: str) -> None:
         pass  # hostname, not an IP — can't validate further without DNS
 
 
-def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str] = None) -> str:
+def _callback_html(
+    payload: dict[str, Any] | None = None, error: str | None = None
+) -> str:
     """
-    Return an HTML page that posts an OAuth result to the opener window via
-    ``window.postMessage`` and immediately closes itself.
+    Return an HTML page that posts an OAuth result to the opener window.
+
+    Uses ``window.postMessage`` and immediately closes itself.
 
     This page is loaded inside the Tesla OAuth popup that the onboarding wizard
     opens.  After the server completes the token exchange it embeds the result
@@ -162,7 +170,8 @@ def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str
         }} else {{
           document.getElementById('msg').className = 'err';
           document.getElementById('msg').textContent =
-            'Could not communicate with the opener window. Please close this tab and try again.';
+            'Could not communicate with the opener window. ' +
+            'Please close this tab and try again.';
         }}
       }} catch(e) {{
         document.getElementById('msg').className = 'err';
@@ -178,6 +187,7 @@ def _callback_html(payload: Optional[Dict[str, Any]] = None, error: Optional[str
 
 
 # ─── PKCE helpers ──────────────────────────────────────────────────────────────
+
 
 def _generate_code_verifier() -> str:
     return base64.urlsafe_b64encode(os.urandom(40)).rstrip(b"=").decode()
@@ -198,9 +208,14 @@ def _clean_expired_sessions() -> None:
 
 # ─── OAuth flow ────────────────────────────────────────────────────────────────
 
+
 class AuthStartBody(BaseModel):
-    """Body for /auth/start — credentials sent in POST body to avoid leaking
-    the client_secret into server access logs, browser history, or proxies."""
+    """
+    Body for /auth/start.
+
+    Credentials are sent in the POST body to avoid leaking the client_secret
+    into server access logs, browser history, or proxies.
+    """
 
     client_id: str
     client_secret: str = ""
@@ -247,10 +262,14 @@ def auth_start(body: AuthStartBody) -> JSONResponse:
     return JSONResponse({"auth_url": auth_url, "state": state}, status_code=200)
 
 
-def _perform_token_exchange(code: str, state: str, issuer: Optional[str] = None) -> Dict[str, Any]:
+def _perform_token_exchange(
+    code: str, state: str, issuer: str | None = None
+) -> dict[str, Any]:
     """
-    Look up the PKCE session, exchange the authorization code for tokens,
-    and return the result payload dict.
+    Exchange the authorization code for tokens.
+
+    Looks up the PKCE session, exchanges the code for tokens, and returns
+    the result payload dict.
 
     The ``issuer`` is taken from the callback URL's ``issuer`` query param
     (e.g. ``https://auth.tesla.com/oauth2/v3``).  The token endpoint is
@@ -302,8 +321,10 @@ def _perform_token_exchange(code: str, state: str, issuer: Optional[str] = None)
         r.raise_for_status()
         tokens = r.json()
     except requests.RequestException as exc:
-        tsc_logger.error("Token exchange failed: %s", exc)
-        raise HTTPException(status_code=502, detail=f"Token exchange failed: {exc}") from exc
+        tsc_logger.exception("Token exchange failed")
+        raise HTTPException(
+            status_code=502, detail=f"Token exchange failed: {exc}"
+        ) from exc
 
     access = tokens.get("access_token", "")
     refresh = tokens.get("refresh_token", "")
@@ -313,9 +334,6 @@ def _perform_token_exchange(code: str, state: str, issuer: Optional[str] = None)
 
     vehicles_list: list = []
     try:
-        from tesla_smart_charger.models import VehicleConfig
-        from tesla_smart_charger.tesla_api import TeslaAPI
-
         tmp_vehicle = VehicleConfig(
             teslaAccessToken=access,
             teslaRefreshToken=refresh,
@@ -325,10 +343,13 @@ def _perform_token_exchange(code: str, state: str, issuer: Optional[str] = None)
         )
         api = TeslaAPI(tmp_vehicle)
         vehicles_list = api.get_vehicles()
-    except Exception as exc:
-        tsc_logger.warning("Could not list vehicles after OAuth: %s", exc)
+    # Deliberately broad: failing to list vehicles must not fail the OAuth
+    # exchange itself — the tokens are still valid and already stored below.
+    # Logged at WARNING (not ERROR) since this path is non-fatal.
+    except Exception:
+        tsc_logger.warning("Could not list vehicles after OAuth.", exc_info=True)
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "access_token": access,
         "refresh_token": refresh,
         "client_id": session["client_id"],
@@ -346,23 +367,31 @@ def _perform_token_exchange(code: str, state: str, issuer: Optional[str] = None)
     return payload
 
 
-def _handle_auth_callback(code: str, state: str, issuer: Optional[str] = None) -> HTMLResponse:
-    """Shared OAuth callback logic — called by both /auth/callback and
-    user-configured redirect URIs (e.g. /done.html)."""
+def _handle_auth_callback(
+    code: str, state: str, issuer: str | None = None
+) -> HTMLResponse:
+    """
+    Run the shared OAuth callback logic.
+
+    Called by both /auth/callback and user-configured redirect URIs
+    (e.g. /done.html).
+    """
     try:
         payload = _perform_token_exchange(code, state, issuer=issuer)
     except HTTPException as exc:
         return HTMLResponse(_callback_html(error=exc.detail))
-    except Exception as exc:
+    # Deliberately broad: this always renders an HTML error page for the
+    # popup window rather than letting any error type propagate as a 500.
+    except Exception as exc:  # noqa: BLE001
         return HTMLResponse(_callback_html(error=str(exc)))
     return HTMLResponse(_callback_html(payload=payload))
 
 
 @router.get("/auth/callback")
 def auth_callback(
-    code: str = Query(...),
-    state: str = Query(...),
-    issuer: Optional[str] = Query(None),
+    code: Annotated[str, Query()],
+    state: Annotated[str, Query()],
+    issuer: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
     """
     OAuth callback — exchanges the authorization code for access/refresh tokens.
@@ -381,10 +410,11 @@ def auth_callback(
 # before the SPA catch-all in __main__.py this route takes precedence.
 @router.get("/done.html")
 def auth_callback_done(
-    code: str = Query(...),
-    state: str = Query(...),
-    issuer: Optional[str] = Query(None),
+    code: Annotated[str, Query()],
+    state: Annotated[str, Query()],
+    issuer: Annotated[str | None, Query()] = None,
 ) -> HTMLResponse:
+    """Alias of /auth/callback for custom-configured Tesla redirect URIs."""
     return _handle_auth_callback(code, state, issuer=issuer)
 
 
@@ -408,12 +438,16 @@ def get_auth_result(state: str) -> JSONResponse:
 
 
 class OAuthExchangeBody(BaseModel):
+    """Body for /auth/exchange — a pasted OAuth callback's code and state."""
+
     code: str
     state: str
-    issuer: Optional[str] = None
+    issuer: str | None = None
 
 
 class OAuthVehiclesBody(BaseModel):
+    """Body for /auth/vehicles — credentials to list vehicles with."""
+
     access_token: str
     proxy_url: str
     region: str = "eu"
@@ -422,12 +456,12 @@ class OAuthVehiclesBody(BaseModel):
 @router.post("/auth/exchange")
 def exchange_auth_code(body: OAuthExchangeBody) -> JSONResponse:
     """
-    Manually exchange an authorization code for tokens using the pasted
-    callback URL from the popup.
+    Manually exchange an authorization code for tokens.
 
-    This is the manual fallback for when the user's reverse proxy serves a
-    static file at the redirect URI path (e.g. ``/done.html``) instead of
-    forwarding the request to the backend.  The user copies the callback URL
+    Used with the pasted callback URL from the popup as the manual fallback
+    for when the user's reverse proxy serves a static file at the redirect
+    URI path (e.g. ``/done.html``) instead of forwarding the request to the
+    backend.  The user copies the callback URL
     from the popup's address bar and pastes it into the main window; the
     frontend extracts ``code`` and ``state`` and calls this endpoint.
     """
@@ -444,14 +478,12 @@ def exchange_auth_code(body: OAuthExchangeBody) -> JSONResponse:
 def list_oauth_vehicles(body: OAuthVehiclesBody) -> JSONResponse:
     """
     Return the list of Tesla vehicles accessible with the provided token.
+
     Used during onboarding to let the user pick vehicles to manage.
 
     Credentials are sent in the request body (never the query string) to avoid
     leaking the access token into access logs / proxy caches.
     """
-    from tesla_smart_charger.models import VehicleConfig
-    from tesla_smart_charger.tesla_api import TeslaAPI
-
     _validate_proxy_url(body.proxy_url)
     tmp_vehicle = VehicleConfig(
         teslaAccessToken=body.access_token,
@@ -468,20 +500,28 @@ def list_oauth_vehicles(body: OAuthVehiclesBody) -> JSONResponse:
 
 # ─── Basic Auth management ─────────────────────────────────────────────────────
 
+
 class AuthSetupBody(BaseModel):
+    """Body for /api/v1/auth/setup — enable/disable Basic Auth and credentials."""
+
     enabled: bool
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
 
 
 class AuthVerifyBody(BaseModel):
+    """Body for /api/v1/auth/verify — a username/password to check."""
+
     username: str
     password: str
 
 
 def _hash_password(password: str) -> str:
     try:
-        import bcrypt
+        # Imported locally so ImportError can be caught here and fall back —
+        # a top-level import would fail at module load instead.
+        import bcrypt  # noqa: PLC0415
+
         return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     except ImportError:
         # Fallback: SHA-256 (less secure, but avoids hard dependency)
@@ -490,7 +530,8 @@ def _hash_password(password: str) -> str:
 
 def _check_password(password: str, hashed: str) -> bool:
     try:
-        import bcrypt
+        import bcrypt  # noqa: PLC0415
+
         return bcrypt.checkpw(password.encode(), hashed.encode())
     except ImportError:
         return hashlib.sha256(password.encode()).hexdigest() == hashed
@@ -502,7 +543,7 @@ def setup_auth(body: AuthSetupBody) -> JSONResponse:
     if _app_config is None:
         raise HTTPException(status_code=503, detail="Not initialised")
 
-    updates: Dict[str, Any] = {"auth": {"enabled": body.enabled}}
+    updates: dict[str, Any] = {"auth": {"enabled": body.enabled}}
 
     if body.enabled:
         if not body.username or not body.password:

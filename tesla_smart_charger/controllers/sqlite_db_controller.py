@@ -1,5 +1,5 @@
 """
-SQLite DB Controller
+SQLite DB Controller.
 
 Stores and retrieves overload event records.
 Supports schema migration to add the vehicle_id column introduced in v2.
@@ -17,6 +17,7 @@ class SqliteDatabaseController(DatabaseController):
     """SQLite-backed implementation of DatabaseController."""
 
     def __init__(self, file_path: str, database: str) -> None:
+        """Bind this controller to a SQLite file (not opened until `initialize_db`)."""
         self.type = "sqlite"
         self.file_path = file_path
         self.database = database
@@ -50,8 +51,7 @@ class SqliteDatabaseController(DatabaseController):
 
             # Migrate: add vehicle_id column if missing (databases created before v2)
             existing_cols = {
-                row[1]
-                for row in self.cursor.execute("PRAGMA table_info(overloads)")
+                row[1] for row in self.cursor.execute("PRAGMA table_info(overloads)")
             }
             if "vehicle_id" not in existing_cols:
                 tsc_logger.info("Migrating overloads table: adding vehicle_id column.")
@@ -60,8 +60,8 @@ class SqliteDatabaseController(DatabaseController):
                 )
                 self.connection.commit()
 
-        except sqlite3.Error as exc:
-            tsc_logger.error("SQLite init error: %s", exc)
+        except sqlite3.Error:
+            tsc_logger.exception("SQLite init error")
             raise
 
     def close_connection(self) -> None:
@@ -94,14 +94,12 @@ class SqliteDatabaseController(DatabaseController):
             )
             self.connection.commit()
             tsc_logger.info("Overload event inserted.")
-        except sqlite3.Error as exc:
-            tsc_logger.error("SQLite insert error: %s", exc)
+        except sqlite3.Error:
+            tsc_logger.exception("SQLite insert error")
             raise
 
     def get_data(self, num_records: int = 10) -> list:
-        """
-        Return the most recent *num_records* overload events as dicts.
-        """
+        """Return the most recent *num_records* overload events as dicts."""
         try:
             self._ensure_open()
             self.cursor.execute(
@@ -115,8 +113,8 @@ class SqliteDatabaseController(DatabaseController):
             )
             rows = self.cursor.fetchall()
             return [dict(row) for row in rows]
-        except sqlite3.Error as exc:
-            tsc_logger.error("SQLite query error: %s", exc)
+        except sqlite3.Error:
+            tsc_logger.exception("SQLite query error")
             raise
 
     def get_data_filtered(
@@ -139,6 +137,7 @@ class SqliteDatabaseController(DatabaseController):
             Inclusive lower bound (``YYYY-MM-DD HH:MM:SS``).
         to_date : str
             Inclusive upper bound (``YYYY-MM-DD HH:MM:SS``).
+
         """
         try:
             self._ensure_open()
@@ -155,6 +154,9 @@ class SqliteDatabaseController(DatabaseController):
                 conditions.append("start <= ?")
                 params.append(to_date)
 
+            # `where` is built only from the fixed condition strings above
+            # (never from user input); all actual values are bound via the
+            # `?` placeholders in `params`, so this isn't a SQL-injection risk.
             where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
             params.append(num_records)
 
@@ -165,13 +167,13 @@ class SqliteDatabaseController(DatabaseController):
                 {where}
                 ORDER BY id DESC
                 LIMIT ?
-                """,
+                """,  # noqa: S608
                 params,
             )
             rows = self.cursor.fetchall()
             return [dict(row) for row in rows]
-        except sqlite3.Error as exc:
-            tsc_logger.error("SQLite filtered query error: %s", exc)
+        except sqlite3.Error:
+            tsc_logger.exception("SQLite filtered query error")
             raise
 
     def delete_data(self) -> None:
@@ -181,8 +183,8 @@ class SqliteDatabaseController(DatabaseController):
             self.cursor.execute("DELETE FROM overloads")
             self.connection.commit()
             tsc_logger.info("All overload records deleted.")
-        except sqlite3.Error as exc:
-            tsc_logger.error("SQLite delete error: %s", exc)
+        except sqlite3.Error:
+            tsc_logger.exception("SQLite delete error")
             raise
 
     def update_data(self, data: dict) -> None:
@@ -198,8 +200,8 @@ class SqliteDatabaseController(DatabaseController):
                 data,
             )
             self.connection.commit()
-        except sqlite3.Error as exc:
-            tsc_logger.error("SQLite update error: %s", exc)
+        except sqlite3.Error:
+            tsc_logger.exception("SQLite update error")
             raise
 
     # ─── Internal helpers ──────────────────────────────────────────────────────

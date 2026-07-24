@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from tesla_smart_charger import constants
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.routes import (
     auth_routes,
@@ -20,7 +21,6 @@ from tesla_smart_charger.routes import (
     vehicle_routes,
 )
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
@@ -28,7 +28,7 @@ def _make_app(tmp_path: Path) -> tuple[FastAPI, AppConfig]:
     """Build a minimal FastAPI app wired to a fresh AppConfig in tmp_path."""
     app_cfg = AppConfig(str(tmp_path / "config"))
     # Prevent migration from picking up the project-root config.json
-    app_cfg._legacy_file = tmp_path / "no_legacy.json"  # noqa: SLF001
+    app_cfg._legacy_file = tmp_path / "no_legacy.json"
     app_cfg.load()
 
     app = FastAPI()
@@ -55,6 +55,7 @@ def _make_app(tmp_path: Path) -> tuple[FastAPI, AppConfig]:
 
 
 def test_status_returns_200(tmp_path: Path) -> None:
+    """GET /api/v1/status returns 200 with the expected top-level fields."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app, raise_server_exceptions=True)
 
@@ -68,6 +69,7 @@ def test_status_returns_200(tmp_path: Path) -> None:
 
 
 def test_status_configured_false_by_default(tmp_path: Path) -> None:
+    """A freshly created AppConfig reports configured=False."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -76,12 +78,15 @@ def test_status_configured_false_by_default(tmp_path: Path) -> None:
 
 
 def test_status_monitor_and_overload_flags(tmp_path: Path) -> None:
+    """Status reflects the injected monitor_active_fn/overload_active_fn callbacks."""
     app_cfg = AppConfig(str(tmp_path / "config"))
-    app_cfg._legacy_file = tmp_path / "no_legacy.json"  # noqa: SLF001
+    app_cfg._legacy_file = tmp_path / "no_legacy.json"
     app_cfg.load()
 
     app = FastAPI()
-    status_routes.init(app_cfg, monitor_active_fn=lambda: True, overload_active_fn=lambda: True)
+    status_routes.init(
+        app_cfg, monitor_active_fn=lambda: True, overload_active_fn=lambda: True
+    )
     app.include_router(status_routes.router)
 
     client = TestClient(app)
@@ -94,6 +99,7 @@ def test_status_monitor_and_overload_flags(tmp_path: Path) -> None:
 
 
 def test_get_config_returns_200(tmp_path: Path) -> None:
+    """GET /api/v1/config returns 200 and never leaks the password hash."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -108,6 +114,7 @@ def test_get_config_returns_200(tmp_path: Path) -> None:
 
 
 def test_post_config_updates_field(tmp_path: Path) -> None:
+    """POST /api/v1/config updates and persists a single field."""
     app, app_cfg = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -119,6 +126,7 @@ def test_post_config_updates_field(tmp_path: Path) -> None:
 
 
 def test_post_config_empty_body_returns_400(tmp_path: Path) -> None:
+    """POST /api/v1/config with no fields to update returns 400."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -155,6 +163,7 @@ VEHICLE_PAYLOAD = {
 
 
 def test_list_vehicles_empty(tmp_path: Path) -> None:
+    """GET /api/v1/vehicles returns an empty list for a fresh config."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -164,6 +173,7 @@ def test_list_vehicles_empty(tmp_path: Path) -> None:
 
 
 def test_add_vehicle_returns_201(tmp_path: Path) -> None:
+    """POST /api/v1/vehicles creates a vehicle and redacts its tokens."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -178,6 +188,7 @@ def test_add_vehicle_returns_201(tmp_path: Path) -> None:
 
 
 def test_get_vehicle_by_id(tmp_path: Path) -> None:
+    """GET /api/v1/vehicles/{id} returns the matching vehicle."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -188,6 +199,7 @@ def test_get_vehicle_by_id(tmp_path: Path) -> None:
 
 
 def test_get_vehicle_not_found_returns_404(tmp_path: Path) -> None:
+    """GET /api/v1/vehicles/{id} returns 404 for an unknown id."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -196,6 +208,7 @@ def test_get_vehicle_not_found_returns_404(tmp_path: Path) -> None:
 
 
 def test_patch_vehicle(tmp_path: Path) -> None:
+    """PATCH /api/v1/vehicles/{id} updates the given field."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -206,6 +219,7 @@ def test_patch_vehicle(tmp_path: Path) -> None:
 
 
 def test_patch_vehicle_empty_body_returns_400(tmp_path: Path) -> None:
+    """PATCH /api/v1/vehicles/{id} with no fields to update returns 400."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -215,6 +229,7 @@ def test_patch_vehicle_empty_body_returns_400(tmp_path: Path) -> None:
 
 
 def test_delete_vehicle(tmp_path: Path) -> None:
+    """DELETE /api/v1/vehicles/{id} removes the vehicle."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -227,6 +242,7 @@ def test_delete_vehicle(tmp_path: Path) -> None:
 
 
 def test_delete_vehicle_not_found_returns_404(tmp_path: Path) -> None:
+    """DELETE /api/v1/vehicles/{id} returns 404 for an unknown id."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -242,7 +258,7 @@ def test_vehicles_persist_across_reload(tmp_path: Path) -> None:
     client.post("/api/v1/vehicles", json=VEHICLE_PAYLOAD)
 
     app2_cfg = AppConfig(str(tmp_path / "config"))
-    app2_cfg._legacy_file = tmp_path / "no_legacy.json"  # noqa: SLF001
+    app2_cfg._legacy_file = tmp_path / "no_legacy.json"
     app2_cfg.load()
     assert len(app2_cfg.vehicles) == 1
     assert app2_cfg.vehicles[0].name == "Model Y"
@@ -252,6 +268,7 @@ def test_vehicles_persist_across_reload(tmp_path: Path) -> None:
 
 
 def test_auth_setup_enable(tmp_path: Path) -> None:
+    """POST /api/v1/auth/setup enables auth and stores a password hash."""
     app, app_cfg = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -266,6 +283,7 @@ def test_auth_setup_enable(tmp_path: Path) -> None:
 
 
 def test_auth_setup_enable_missing_password_returns_400(tmp_path: Path) -> None:
+    """Enabling auth without a password returns 400."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -274,15 +292,19 @@ def test_auth_setup_enable_missing_password_returns_400(tmp_path: Path) -> None:
 
 
 def test_auth_verify_no_auth_always_valid(tmp_path: Path) -> None:
+    """POST /api/v1/auth/verify is always valid when auth is disabled."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
-    r = client.post("/api/v1/auth/verify", json={"username": "anyone", "password": "whatever"})
+    r = client.post(
+        "/api/v1/auth/verify", json={"username": "anyone", "password": "whatever"}
+    )
     assert r.status_code == 200
     assert r.json()["valid"] is True
 
 
 def test_auth_verify_correct_credentials(tmp_path: Path) -> None:
+    """POST /api/v1/auth/verify accepts the correct username/password."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -298,6 +320,7 @@ def test_auth_verify_correct_credentials(tmp_path: Path) -> None:
 
 
 def test_auth_verify_wrong_password_returns_401(tmp_path: Path) -> None:
+    """POST /api/v1/auth/verify rejects an incorrect password."""
     app, _ = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -312,6 +335,7 @@ def test_auth_verify_wrong_password_returns_401(tmp_path: Path) -> None:
 
 
 def test_auth_disable(tmp_path: Path) -> None:
+    """POST /api/v1/auth/setup can disable auth after enabling it."""
     app, app_cfg = _make_app(tmp_path)
     client = TestClient(app)
 
@@ -329,8 +353,6 @@ def test_auth_disable(tmp_path: Path) -> None:
 
 def test_history_returns_200_with_in_memory_db(tmp_path: Path) -> None:
     """History endpoint should succeed even with an in-memory/new SQLite DB."""
-    from tesla_smart_charger import constants
-
     db_path = str(tmp_path / "test.db")
     original_db_type = constants.DB_TYPE
     original_db_path = constants.DB_FILE_PATH

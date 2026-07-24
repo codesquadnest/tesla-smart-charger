@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from tesla_smart_charger.charger_config import ChargerConfig
 
 
-@pytest.fixture()
+@pytest.fixture
 def config_file(tmp_path: str) -> str:
     """Create a temporary config file."""
     config = {
@@ -109,7 +109,6 @@ def test_set_config(config_file: str) -> None:
     tesla_config.load_config()
 
     class Config(BaseModel):
-
         """Config class for Tesla Smart Charger."""
 
         homeMaxAmps: float
@@ -190,13 +189,13 @@ def test_validate_config() -> None:
             "teslaClientId": "12234567890",
         },
     )
-    with pytest.raises(ValueError): # noqa: PT011
+    with pytest.raises(ValueError, match="homeMaxAmps"):
         tesla_config.validate_config({"chargerMaxAmps": 11.0, "chargerMinAmps": 6.0})
-    with pytest.raises(ValueError): # noqa: PT011
+    with pytest.raises(ValueError, match="homeMaxAmps"):
         tesla_config.validate_config(
             {"chargerMaxAmps": 11.0, "chargerMinAmps": 6.0, "downStepPercentage": 0.5},
         )
-    with pytest.raises(ValueError): # noqa: PT011
+    with pytest.raises(ValueError, match="homeMaxAmps"):
         tesla_config.validate_config(
             {
                 "chargerMaxAmps": 11.0,

@@ -39,7 +39,7 @@ tesla-smart-charger = "tesla_smart_charger.__main__:main"
 dev = [
     "black>=25.11.0",
     "pytest>=8.3.4",
-    "ruff>=0.15.10",
+    "ruff==0.16.0",
     "pytest-cov>=5.0.0",
     "tox>=4.23.2",
     "httpx2>=0.28.1",
@@ -67,7 +67,13 @@ testpaths = ["tests"]
 [toolpytest.cov]
 fail_under = 80
 
-[lint.ruff]
+[tool.ruff]
+target-version = "py310"
+# Same as Black.
+line-length = 88
+
+[tool.ruff.lint]
+select = ["ALL"]
 ignore = [
   "T201", # print() used
   "S104", # bind to all interfaces
@@ -78,21 +84,23 @@ ignore = [
   "PLR2004", # Use Magic Numbers
   "PLW0603", # Use of global statement
   "ERA001", # Found commented-out code
+  "COM812", # Trailing comma missing (conflicts with the formatter)
+  "D203", # 1 blank line required before class docstring (conflicts with D211, which we use)
+  "CPY001", # Missing copyright notice — this project doesn't use per-file copyright headers
 ]
 extend-ignore = ["N815"] # mixedCase variable in function scope
-lint.select = ["ALL"]
-target-version = "py310"
-# Same as Black.
-line-length = 88
 
-[lint.per-file-ignores]
-"tests/**/*.py" = ["S101"] # Use of assert detected.
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "S101",   # Use of assert detected.
+  "SLF001", # Private member accessed (intentional white-box testing).
+]
 
-[lint.mccabe]
+[tool.ruff.lint.mccabe]
 # Implicit 10 is too low for our codebase, even black uses 18 as default.
 max-complexity = 20
 
-[lint.flake8-builtins]
+[tool.ruff.lint.flake8-builtins]
 builtins-ignorelist = ["id"]
 
 [tool.tox]
@@ -112,7 +120,7 @@ legacy_tox_ini = """
     
     [testenv:lint]
     deps =
-        ruff
+        ruff==0.16.0
     commands =
         ruff check tesla_smart_charger tests
     

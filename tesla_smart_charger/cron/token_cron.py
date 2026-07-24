@@ -8,8 +8,8 @@ from tesla_smart_charger.tesla_api import TeslaAPI
 
 tsc_logger = logger.get_logger()
 
-REFRESH_OK_INTERVAL = 10800   # 3 hours
-REFRESH_FAIL_INTERVAL = 300   # 5 minutes
+REFRESH_OK_INTERVAL = 10800  # 3 hours
+REFRESH_FAIL_INTERVAL = 300  # 5 minutes
 
 
 def refresh_all_tokens(app_config: AppConfig) -> bool:
@@ -68,8 +68,10 @@ def start_cron_token(stop_event: threading.Event, app_config: AppConfig) -> None
 
     try:
         success = refresh_all_tokens(app_config)
-    except Exception as exc:
-        tsc_logger.error("Initial token refresh failed unexpectedly: %s", exc)
+    # Deliberately broad: this is the cron loop's top-level guard — any
+    # unexpected error here must be logged, not crash the thread.
+    except Exception:
+        tsc_logger.exception("Initial token refresh failed unexpectedly")
         success = False
 
     interval = REFRESH_OK_INTERVAL if success else REFRESH_FAIL_INTERVAL
@@ -85,8 +87,10 @@ def start_cron_token(stop_event: threading.Event, app_config: AppConfig) -> None
                     interval,
                     "success" if success else "previous failure",
                 )
-            except Exception as exc:
-                tsc_logger.error("Unhandled error in token refresh: %s", exc)
+            # Deliberately broad: this is the cron loop's top-level guard —
+            # any unexpected error here must be logged, not crash the thread.
+            except Exception:
+                tsc_logger.exception("Unhandled error in token refresh")
                 interval = REFRESH_FAIL_INTERVAL
             countdown = interval
         stop_event.wait(sleep_tick)

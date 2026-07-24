@@ -49,7 +49,9 @@ def create_database_controller(
     file_path: str,
 ) -> DatabaseController:
     """Create instances of DatabaseController based on the implementation_type."""
-    from tesla_smart_charger.controllers import sqlite_db_controller
+    # Imported locally to avoid a circular import: sqlite_db_controller imports
+    # DatabaseController from this module at module scope.
+    from tesla_smart_charger.controllers import sqlite_db_controller  # noqa: PLC0415
 
     if implementation_type == "sqlite":
         return sqlite_db_controller.SqliteDatabaseController(file_path, database)

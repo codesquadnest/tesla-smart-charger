@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import uuid
 from enum import Enum
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -21,7 +20,9 @@ class OverloadStrategy(str, Enum):
     """Strategy for distributing load reduction across multiple vehicles."""
 
     PROPORTIONAL = "proportional"  # All vehicles reduced proportionally
-    PRIORITY = "priority"  # Vehicles reduced in priority order (1 = highest, reduce last)
+    PRIORITY = (
+        "priority"  # Vehicles reduced in priority order (1 = highest, reduce last)
+    )
 
 
 class AuthConfig(BaseModel):
@@ -62,15 +63,18 @@ class SystemConfig(BaseModel):
     downStepPercentage: float = 0.5
     upStepPercentage: float = 0.25
     overloadStrategy: OverloadStrategy = OverloadStrategy.PROPORTIONAL
-    maxSessionDuration: int = 600  # Maximum supervised session duration in seconds (default 10 min)
+    maxSessionDuration: int = (
+        600  # Maximum supervised session duration in seconds (default 10 min)
+    )
     hostIp: str = "localhost"
     apiPort: int = 8000
-    corsOrigins: List[str] = Field(default_factory=lambda: ["*"])
+    corsOrigins: list[str] = Field(default_factory=lambda: ["*"])
     auth: AuthConfig = Field(default_factory=AuthConfig)
     configured: bool = False  # Set to True after completing the onboarding wizard
 
 
 # ─── API response models ───────────────────────────────────────────────────────
+
 
 class VehicleStatus(BaseModel):
     """Live status for a vehicle, merged with its config."""
@@ -85,10 +89,14 @@ class VehicleStatus(BaseModel):
     priority: int
     enabled: bool
     # Live fields (None when vehicle is offline / not reachable)
-    online: Optional[bool] = None
-    chargingState: Optional[str] = None
-    chargerActualCurrent: Optional[float] = None
-    batteryLevel: Optional[int] = None
+    online: bool | None = None
+    chargingState: str | None = None
+    chargerActualCurrent: float | None = None
+    batteryLevel: int | None = None
+    # True while telemetry has never been fetched yet and a background
+    # refresh is in flight — lets clients distinguish "still fetching"
+    # from "checked and it's offline".
+    pending: bool = False
 
 
 class SystemStatus(BaseModel):
@@ -97,7 +105,7 @@ class SystemStatus(BaseModel):
     configured: bool
     monitorActive: bool
     overloadActive: bool
-    currentConsumptionAmps: Optional[float] = None
+    currentConsumptionAmps: float | None = None
     homeMaxAmps: float
     region: str
     voltage: float
