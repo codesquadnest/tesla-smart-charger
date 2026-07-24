@@ -306,6 +306,15 @@ def trigger_overload(app_config: AppConfig) -> tuple[bool, str]:
 # Consecutive ramp-up iterations at max amp needed before ending the session.
 _CONSECUTIVE_MAX_NEEDED = 3
 
+# Consecutive in-limit readings needed during stabilisation before treating
+# the overload as resolved — guards against a single transient dip.
+_STABLE_READINGS_NEEDED = 3
+
+# Base stabilisation wait window, in iterations. A bad reading on the very
+# last base iteration would otherwise leave no room to confirm a streak, so
+# the loop runs for this many iterations plus a little slack (see below).
+_STABILISATION_BASE_ITERATIONS = 10
+
 
 @dataclass
 class _AdjustmentState:
@@ -321,22 +330,34 @@ def _run_stabilisation_phase(
     em_ctrl: EnergyMonitorController, app_config: AppConfig
 ) -> None:
     """
-    Wait up to 10 x sleep_time for consumption to stabilise after the first step.
+    Wait for consumption to stabilise after the first downstep.
 
-    If consumption drops within limits during this window we return early so
+    Requires _STABLE_READINGS_NEEDED consecutive in-limit readings before
+    returning early — a single low reading could be a transient dip rather
+    than genuine resolution, so any reading back above the limit resets the
+    streak. Runs for up to _STABILISATION_BASE_ITERATIONS x sleep_time, plus
+    a little slack so a bad reading near the end still leaves room to
+    confirm a streak. If the window elapses without one, falls through so
     the main adjustment loop (which handles ramp-up) can take over.
     """
     cfg = app_config.system
-    for _ in range(10):
+    consecutive_ok = 0
+    max_iterations = _STABILISATION_BASE_ITERATIONS + _STABLE_READINGS_NEEDED - 1
+    for _ in range(max_iterations):
         time.sleep(cfg.sleepTimeSecs)
         cfg = app_config.system  # refresh
         em_amps = _get_consumption(em_ctrl, app_config)
         if em_amps <= cfg.homeMaxAmps:
-            tsc_logger.info(
-                "Consumption within limits during stabilisation — entering "
-                "adjustment loop."
-            )
-            return
+            consecutive_ok += 1
+            if consecutive_ok >= _STABLE_READINGS_NEEDED:
+                tsc_logger.info(
+                    "Consumption within limits for %d consecutive reads — "
+                    "entering adjustment loop.",
+                    consecutive_ok,
+                )
+                return
+        else:
+            consecutive_ok = 0
     tsc_logger.info("Overload still present after stabilisation wait.")
 
 
