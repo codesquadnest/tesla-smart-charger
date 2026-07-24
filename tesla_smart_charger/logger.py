@@ -38,10 +38,9 @@ def get_logger(
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
-        if log_file := DEFAULT_LOG_FILE:
+        if log_file:
             file_handler = logging.FileHandler(log_file)
-
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
 
     return logger

@@ -331,13 +331,13 @@ def _run_stabilisation_phase(
         time.sleep(cfg.sleepTimeSecs)
         cfg = app_config.system  # refresh
         em_amps = _get_consumption(em_ctrl, app_config)
-        if em_amps > cfg.homeMaxAmps:
-            tsc_logger.info("Overload still present after stabilisation wait.")
+        if em_amps <= cfg.homeMaxAmps:
+            tsc_logger.info(
+                "Consumption within limits during stabilisation — entering "
+                "adjustment loop."
+            )
             return
-        tsc_logger.info(
-            "Consumption within limits during stabilisation — entering adjustment loop."
-        )
-        return
+    tsc_logger.info("Overload still present after stabilisation wait.")
 
 
 def _apply_overload_reduction(

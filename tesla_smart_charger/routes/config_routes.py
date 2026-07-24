@@ -92,7 +92,8 @@ def test_energy_monitor(body: TestEnergyMonitorBody) -> JSONResponse:
             {
                 "ok": False,
                 "error": str(exc),
-            }
+            },
+            status_code=400,
         )
 
 
