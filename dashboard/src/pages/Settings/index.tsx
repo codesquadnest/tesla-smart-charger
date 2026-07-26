@@ -273,7 +273,10 @@ function SecuritySection({ config }: { config: SystemConfig }) {
           ) : (
             <>
               <ShieldOff size={20} className="text-slate-400" />
-              <span className="text-slate-500">Authentication disabled</span>
+              <span className="text-slate-500">
+                Authentication disabled — vehicle controls (wake, charge limit,
+                refresh) are locked until you enable it.
+              </span>
             </>
           )}
         </div>

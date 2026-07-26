@@ -1,13 +1,18 @@
 import { useStatus } from '@/hooks/useStatus'
+import { useNow } from '@/hooks/useNow'
+import { useCommandAuth } from '@/hooks/useCommandAuth'
 import { Card, StatCard } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
 import { Zap, Thermometer, Activity, BatteryCharging } from 'lucide-react'
-import type { VehicleStatus } from '@/lib/types'
-// Badge styles are applied directly via CSS utility classes (badge-green, badge-red, etc.)
+import { VehicleCard } from './VehicleCard'
+import { CommandAccess } from './CommandAccess'
 
 export default function DashboardPage() {
-  const { data: status, isLoading, error } = useStatus()
+  const { data: status, isLoading, error, dataUpdatedAt } = useStatus()
+  const now = useNow()
+  const signedIn = useCommandAuth()
+  const canCommand = Boolean(status?.authEnabled) && signedIn
 
   if (isLoading) {
     return (
@@ -33,7 +38,9 @@ export default function DashboardPage() {
     <div className="p-8 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Live system state — refreshes every 10 seconds</p>
+        <p className="text-slate-500 text-sm mt-1">
+          Live system state — each vehicle card shows when its data was last fetched
+        </p>
       </div>
 
       {/* Overload banner */}
@@ -89,82 +96,22 @@ export default function DashboardPage() {
             No vehicles configured yet.
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {status.vehicles.map((v) => (
-              <VehicleCard key={v.id} vehicle={v} />
-            ))}
+          <div className="space-y-4">
+            <CommandAccess authEnabled={status.authEnabled} signedIn={signedIn} />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {status.vehicles.map((v) => (
+                <VehicleCard
+                  key={v.id}
+                  vehicle={v}
+                  now={now}
+                  dataUpdatedAt={dataUpdatedAt}
+                  canCommand={canCommand}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
     </div>
   )
-}
-
-function VehicleCard({ vehicle: v }: { vehicle: VehicleStatus }) {
-  const chargePct =
-    v.chargerActualCurrent != null && v.chargerMaxAmps > 0
-      ? Math.max(0, Math.min(100, Math.round((v.chargerActualCurrent / v.chargerMaxAmps) * 100)))
-      : null
-
-  return (
-    <Card>
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <p className="font-semibold text-slate-900">{v.name || 'Tesla Vehicle'}</p>
-          {v.vin && <p className="text-xs text-slate-400">VIN: {v.vin}</p>}
-        </div>
-        {v.pending ? <Spinner size={16} /> : <OnlineBadge online={v.online} />}
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Charging</span>
-          <span className="font-medium text-slate-900">
-            {v.pending ? 'Fetching…' : (v.chargingState ?? '—')}
-          </span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Current</span>
-          <span className="font-medium text-slate-900">
-            {v.pending
-              ? 'Fetching…'
-              : v.chargerActualCurrent != null
-                ? `${v.chargerActualCurrent} A`
-                : '—'}
-          </span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-slate-500">Battery</span>
-          <span className="font-medium text-slate-900">
-            {v.pending ? 'Fetching…' : v.batteryLevel != null ? `${v.batteryLevel}%` : '—'}
-          </span>
-        </div>
-
-        {chargePct != null && (
-          <div>
-            <div className="flex justify-between text-xs text-slate-500 mb-1">
-              <span>Charge rate</span>
-              <span>
-                {v.chargerActualCurrent}A / {v.chargerMaxAmps}A
-              </span>
-            </div>
-            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-brand-500 rounded-full transition-all"
-                style={{ width: `${chargePct}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
-  )
-}
-
-function OnlineBadge({ online }: { online: boolean | null }) {
-  if (online === null)
-    return <span className="badge-slate">Unknown</span>
-  if (online)
-    return <span className="badge-green">● Online</span>
-  return <span className="badge-red">● Offline</span>
 }

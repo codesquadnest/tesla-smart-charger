@@ -182,6 +182,100 @@ class TeslaAPI:
             tsc_logger.debug(response)
         return response
 
+    def _send_command(self, command: str, payload: dict) -> dict:
+        """
+        Send a signed vehicle command through the proxy.
+
+        Not retried: `retrying` retries on any exception, so a 4xx (expired
+        token, car asleep) would burn five attempts before the caller hears
+        about it — unhelpful for an interactive command.
+        """
+        # Use the VIN (17 chars) for command URLs — the tesla-http-proxy rejects
+        # numeric Fleet API IDs in command paths.
+        vehicle_id = self.vehicle.vin or self.vehicle.teslaVehicleId
+        if not vehicle_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Neither vin nor teslaVehicleId is set on this vehicle config",
+            )
+        tsc_logger.info("Sending command %s to vehicle %s.", command, vehicle_id)
+        url = constants.TESLA_API_COMMAND_URL.format(id=vehicle_id, command=command)
+        try:
+            r = requests.post(
+                f"{self._proxy}{url}",
+                headers=self._headers(),
+                json=payload,
+                **self._tls(),
+                timeout=10,
+            )
+            r.raise_for_status()
+        except requests.RequestException as exc:
+            self._raise(exc, command)
+        response = r.json()
+        if constants.VERBOSE:
+            tsc_logger.debug(response)
+        self._raise_on_rejection(response, command)
+        return response
+
+    def _raise_on_rejection(self, response: dict, command: str) -> None:
+        """
+        Turn a vehicle-level command rejection into an error.
+
+        Tesla answers a refused command with HTTP 200 and
+        ``{"response": {"result": false, "reason": "..."}}`` — typically when
+        the car is asleep or unreachable.  Without this check the caller would
+        report success and the dashboard would show a change that never
+        happened.
+        """
+        result = response.get("response")
+        if not isinstance(result, dict) or result.get("result") is not False:
+            return
+        reason = result.get("reason") or "no reason given"
+        msg = f"Vehicle rejected {command}: {reason}"
+        tsc_logger.error(msg)
+        # 409: the request was well-formed, but the car's current state (asleep,
+        # unreachable) prevents it — a retry after waking may well succeed.
+        raise HTTPException(status_code=409, detail=msg)
+
+    def set_charge_limit(self, percent: int) -> dict:
+        """Command this vehicle to set its target state of charge."""
+        return self._send_command("set_charge_limit", {"percent": percent})
+
+    def wake_up(self) -> dict:
+        """
+        Ask Tesla to wake this vehicle.
+
+        Goes directly to the Fleet API (Bearer token only, no mTLS) because
+        waking requires no command signing — so it still works when the
+        tesla-http-proxy is down.  Uses the numeric vehicle id, not the VIN:
+        the VIN preference elsewhere exists only because the proxy rejects
+        numeric ids on command paths.
+
+        Waking is asynchronous — a successful response means Tesla accepted
+        the request, not that the car is awake yet.
+        """
+        vehicle_id = self.vehicle.teslaVehicleId
+        if not vehicle_id:
+            raise HTTPException(
+                status_code=400,
+                detail="teslaVehicleId is not set on this vehicle config",
+            )
+        tsc_logger.info("Waking vehicle %s.", vehicle_id)
+        url = constants.TESLA_API_WAKE_UP_URL.format(id=vehicle_id)
+        try:
+            r = requests.post(
+                f"{self._fleet_api_url}{url}",
+                headers=self._headers(),
+                timeout=15,
+            )
+            r.raise_for_status()
+        except requests.RequestException as exc:
+            self._raise(exc, "wake_up")
+        response = r.json()
+        if constants.VERBOSE:
+            tsc_logger.debug(response)
+        return response.get("response", {})
+
     def refresh_token(self, region: str = "eu") -> tuple[str, str] | None:
         """
         Exchange the vehicle's refresh_token for a new access/refresh token pair.

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from tesla_smart_charger import logger
+from tesla_smart_charger import logger, telemetry_cache
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.models import VehicleConfig
 from tesla_smart_charger.tesla_api import TeslaAPI
@@ -103,6 +103,9 @@ def patch_vehicle(vehicle_id: str, body: VehicleUpdate) -> JSONResponse:
     updated = _app_config.update_vehicle(vehicle_id, updates)
     if updated is None:
         raise HTTPException(status_code=404, detail=f"Vehicle {vehicle_id} not found")
+    # Cached statuses embed config fields (name, amp limits, priority, enabled),
+    # so a stale entry would keep serving pre-update values for up to the TTL.
+    telemetry_cache.invalidate(vehicle_id)
     return JSONResponse(_redact(updated), status_code=200)
 
 
@@ -114,6 +117,7 @@ def delete_vehicle(vehicle_id: str) -> JSONResponse:
     removed = _app_config.remove_vehicle(vehicle_id)
     if not removed:
         raise HTTPException(status_code=404, detail=f"Vehicle {vehicle_id} not found")
+    telemetry_cache.invalidate(vehicle_id)
     return JSONResponse({"message": f"Vehicle {vehicle_id} removed."}, status_code=200)
 
 

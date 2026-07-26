@@ -3,6 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.tesla-http-proxy
+      args:
+        # Upstream teslamotors/vehicle-command release. Change both together —
+        # the build verifies the tag still resolves to this commit.
+        VEHICLE_COMMAND_VERSION: v0.4.1
+        VEHICLE_COMMAND_SHA: 49977a18fd68567501d59e16a6c9e4a8b9348544
     container_name: tesla-http-proxy
     volumes:
       - ./certs:/app/certs:ro

@@ -45,9 +45,16 @@ export interface VehicleStatus {
   chargingState: string | null
   chargerActualCurrent: number | null
   batteryLevel: number | null
+  chargeLimitSoc: number | null
   // True while telemetry has never been fetched yet and a background
   // refresh is in flight on the backend.
   pending: boolean
+  // Seconds since the backend last fetched this vehicle's telemetry from
+  // Tesla, measured server-side. null when nothing has ever been fetched.
+  telemetryAgeSecs: number | null
+  // True whenever a background refresh is in flight, unlike `pending` which
+  // only covers the very first fetch.
+  refreshing: boolean
 }
 
 /** Overall system status — GET /api/v1/status. */
@@ -55,6 +62,9 @@ export interface SystemStatus {
   configured: boolean
   monitorActive: boolean
   overloadActive: boolean
+  // Whether Basic Auth is configured. Vehicle commands fail closed without it,
+  // so the dashboard locks its controls and explains why when this is false.
+  authEnabled: boolean
   currentConsumptionAmps: number | null
   homeMaxAmps: number
   region: string
