@@ -10,6 +10,8 @@ background thread refreshes expired entries.
 import threading
 import time
 
+from fastapi import HTTPException
+
 from tesla_smart_charger import logger
 from tesla_smart_charger.models import VehicleConfig, VehicleStatus
 from tesla_smart_charger.tesla_api import TeslaAPI
@@ -107,6 +109,18 @@ def _refresh(vehicle: VehicleConfig, generation: int) -> None:
         status.chargerActualCurrent = charge.get("charger_actual_current")
         status.batteryLevel = charge.get("battery_level")
         status.chargeLimitSoc = charge.get("charge_limit_soc")
+    except HTTPException as exc:
+        # 408 (asleep) is already logged at debug level in TeslaAPI._raise() —
+        # re-logging it here at ERROR every 300s per offline vehicle would bury
+        # real failures in noise and could trigger false alerts.
+        if exc.status_code == 408:
+            tsc_logger.debug(
+                "Vehicle %s is asleep; skipping telemetry update.", vehicle.id
+            )
+        else:
+            tsc_logger.exception(
+                "Live telemetry fetch failed for vehicle %s", vehicle.id
+            )
     # Deliberately broad: this runs on a background thread and must never
     # crash — `finally` below always settles the cache either way.
     except Exception:

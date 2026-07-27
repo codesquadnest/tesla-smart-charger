@@ -305,9 +305,12 @@ def test_refresh_evicts_cache_and_schedules(
         lambda vehicle: bool(started.append(vehicle.id)) or True,
     )
     client, vid = _client_with_vehicle(tmp_path)
+    vehicle = next(v for v in command_routes._app_config.vehicles if v.id == vid)
+    telemetry_cache._cache[vid] = (0.0, telemetry_cache.base_status(vehicle))
 
     r = client.post(f"/api/v1/vehicles/{vid}/refresh", auth=CREDS)
 
     assert r.status_code == 202
     assert r.json()["refreshing"] is True
     assert started == [vid]
+    assert telemetry_cache.age(vid) is None

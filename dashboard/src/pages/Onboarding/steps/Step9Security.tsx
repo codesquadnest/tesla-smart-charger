@@ -33,8 +33,11 @@ export function Step9Security({ state, update, next, back }: Props) {
       </Alert>
 
       <Alert type="info">
-        This app is designed for local network use. If you expose it to the
-        internet, enabling authentication is strongly recommended.
+        Basic Auth here only protects the wake / charge-limit / refresh
+        commands above — the dashboard and the rest of the API stay open to
+        anyone who can reach this port. Don't expose this app directly to the
+        internet; put it behind a firewall, VPN, or a reverse proxy that adds
+        its own authentication.
       </Alert>
 
       <div className="card p-6 space-y-5">

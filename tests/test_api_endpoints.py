@@ -99,6 +99,24 @@ def test_status_reports_auth_enabled_once_configured(tmp_path: Path) -> None:
     assert client.get("/api/v1/status").json()["authEnabled"] is True
 
 
+def test_status_reports_auth_disabled_with_blank_username(tmp_path: Path) -> None:
+    """Enabled + passwordHash but no username must not report auth as usable."""
+    app, app_cfg = _make_app(tmp_path)
+    client = TestClient(app)
+
+    app_cfg.update_system(
+        {
+            "auth": {
+                "enabled": True,
+                "username": "",
+                "passwordHash": security.hash_password("pw"),
+            }
+        }
+    )
+
+    assert client.get("/api/v1/status").json()["authEnabled"] is False
+
+
 def test_status_monitor_and_overload_flags(tmp_path: Path) -> None:
     """Status reflects the injected monitor_active_fn/overload_active_fn callbacks."""
     app_cfg = AppConfig(str(tmp_path / "config"))

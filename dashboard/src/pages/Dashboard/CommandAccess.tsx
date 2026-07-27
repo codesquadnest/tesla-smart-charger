@@ -30,7 +30,9 @@ export function CommandAccess({ authEnabled, signedIn }: Props) {
         <Link to="/settings" className="underline font-medium">
           Settings → Security
         </Link>
-        .
+        . Note that Basic Auth only covers these commands — the rest of the
+        API stays open, so this isn't a substitute for keeping the app off the
+        public internet.
       </Alert>
     )
   }
@@ -71,7 +73,7 @@ function SignInForm() {
       .finally(() => setBusy(false))
   }
 
-  const valid = username.trim().length > 0 && password.length > 0
+  const canSubmit = username.trim().length > 0 && password.length > 0 && !busy
 
   return (
     <div className="p-4 rounded-lg border border-slate-200 bg-white space-y-3">
@@ -95,12 +97,12 @@ function SignInForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && valid) submit()
+            if (e.key === 'Enter' && canSubmit) submit()
           }}
         />
       </div>
       {error && <Alert type="error">{error}</Alert>}
-      <Button size="sm" loading={busy} disabled={!valid} onClick={submit}>
+      <Button size="sm" loading={busy} disabled={!canSubmit} onClick={submit}>
         Unlock controls
       </Button>
     </div>

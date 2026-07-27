@@ -7,10 +7,10 @@ has not been configured the commands are refused outright rather than left open,
 so an unprotected deployment cannot be driven by anyone who can reach the port.
 """
 
-import hashlib
 import secrets
 from typing import Annotated
 
+import bcrypt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
@@ -40,36 +40,21 @@ def init(app_config: AppConfig) -> None:
 
 
 def hash_password(password: str) -> str:
-    """Hash a password with bcrypt, falling back to SHA-256 if it's missing."""
-    try:
-        # Imported locally so ImportError can be caught here and fall back —
-        # a top-level import would fail at module load instead.
-        import bcrypt  # noqa: PLC0415
-
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    except ImportError:
-        # Fallback: SHA-256 (less secure, but avoids hard dependency)
-        return hashlib.sha256(password.encode()).hexdigest()
+    """Hash a password with bcrypt (a required dependency — see pyproject.toml)."""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def check_password(password: str, hashed: str) -> bool:
     """Verify a password against a stored hash produced by `hash_password`."""
-    try:
-        import bcrypt  # noqa: PLC0415
-
-        return bcrypt.checkpw(password.encode(), hashed.encode())
-    except ImportError:
-        return secrets.compare_digest(
-            hashlib.sha256(password.encode()).hexdigest(), hashed
-        )
+    return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
 def auth_configured() -> bool:
-    """Whether Basic Auth is enabled *and* has a usable password hash."""
+    """Whether Basic Auth is enabled *and* has a usable username + password hash."""
     if _app_config is None:
         return False
     auth = _app_config.system.auth
-    return bool(auth.enabled and auth.passwordHash)
+    return bool(auth.enabled and auth.username and auth.passwordHash)
 
 
 def require_auth(

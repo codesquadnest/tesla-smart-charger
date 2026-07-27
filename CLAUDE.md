@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-```
+```text
 tesla-http-proxy (port 4443, TLS + mTLS)  ←  tesla-smart-charger (uvicorn)
                                                           │
         ┌─────────────────────────────────────────────────┤

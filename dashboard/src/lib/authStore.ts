@@ -30,9 +30,16 @@ export function getAuthHeader(): string | null {
   return encoded ? `Basic ${encoded}` : null
 }
 
+/** btoa is Latin1-only; this widens it to arbitrary UTF-8 credentials. */
+function toBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value)
+  const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join('')
+  return btoa(binary)
+}
+
 export function signIn(username: string, password: string) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, btoa(`${username}:${password}`))
+    sessionStorage.setItem(STORAGE_KEY, toBase64(`${username}:${password}`))
   } catch {
     /* storage unavailable — the sign-in simply won't persist */
   }
