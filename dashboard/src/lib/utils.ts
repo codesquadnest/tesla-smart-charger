@@ -36,6 +36,16 @@ export function formatDateTime(value?: string | null): string {
   return d.toLocaleString()
 }
 
+/** Format an elapsed age in seconds as a compact "just now" / "42s ago" label. */
+export function formatAge(seconds: number | null | undefined): string {
+  if (seconds == null || Number.isNaN(seconds)) return 'never'
+  const total = Math.max(0, Math.round(seconds))
+  if (total < 5) return 'just now'
+  if (total < 60) return `${total}s ago`
+  if (total < 3600) return `${Math.floor(total / 60)}m ago`
+  return `${Math.floor(total / 3600)}h ago`
+}
+
 /** Format a duration in seconds as a compact "1h 2m 3s" string. */
 export function formatDuration(seconds: number | string): string {
   const total = Math.max(0, Math.round(Number(seconds) || 0))

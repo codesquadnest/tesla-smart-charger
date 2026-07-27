@@ -93,10 +93,18 @@ class VehicleStatus(BaseModel):
     chargingState: str | None = None
     chargerActualCurrent: float | None = None
     batteryLevel: int | None = None
+    chargeLimitSoc: int | None = None
     # True while telemetry has never been fetched yet and a background
     # refresh is in flight — lets clients distinguish "still fetching"
     # from "checked and it's offline".
     pending: bool = False
+    # Seconds since this vehicle's telemetry was fetched from Tesla, computed
+    # server-side (the cache stores a process-relative time.monotonic() value).
+    # None when nothing has ever been fetched.
+    telemetryAgeSecs: float | None = None
+    # True whenever a background refresh is in flight, unlike `pending` which
+    # only covers the very first fetch.
+    refreshing: bool = False
 
 
 class SystemStatus(BaseModel):
@@ -105,6 +113,9 @@ class SystemStatus(BaseModel):
     configured: bool
     monitorActive: bool
     overloadActive: bool
+    # Whether Basic Auth is configured. Vehicle command endpoints fail closed
+    # without it, so the dashboard uses this to lock its controls and explain why.
+    authEnabled: bool = False
     currentConsumptionAmps: float | None = None
     homeMaxAmps: float
     region: str

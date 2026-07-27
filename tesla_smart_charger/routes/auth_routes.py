@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from tesla_smart_charger import constants, logger
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.models import VehicleConfig
+from tesla_smart_charger.security import check_password, hash_password
 from tesla_smart_charger.tesla_api import TeslaAPI
 
 tsc_logger = logger.get_logger()
@@ -516,27 +517,6 @@ class AuthVerifyBody(BaseModel):
     password: str
 
 
-def _hash_password(password: str) -> str:
-    try:
-        # Imported locally so ImportError can be caught here and fall back —
-        # a top-level import would fail at module load instead.
-        import bcrypt  # noqa: PLC0415
-
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    except ImportError:
-        # Fallback: SHA-256 (less secure, but avoids hard dependency)
-        return hashlib.sha256(password.encode()).hexdigest()
-
-
-def _check_password(password: str, hashed: str) -> bool:
-    try:
-        import bcrypt  # noqa: PLC0415
-
-        return bcrypt.checkpw(password.encode(), hashed.encode())
-    except ImportError:
-        return hashlib.sha256(password.encode()).hexdigest() == hashed
-
-
 @router.post("/api/v1/auth/setup")
 def setup_auth(body: AuthSetupBody) -> JSONResponse:
     """Enable or disable HTTP Basic Auth and optionally set credentials."""
@@ -552,7 +532,7 @@ def setup_auth(body: AuthSetupBody) -> JSONResponse:
                 detail="username and password are required when enabling auth.",
             )
         updates["auth"]["username"] = body.username
-        updates["auth"]["passwordHash"] = _hash_password(body.password)
+        updates["auth"]["passwordHash"] = hash_password(body.password)
     else:
         updates["auth"]["username"] = ""
         updates["auth"]["passwordHash"] = ""
@@ -572,7 +552,7 @@ def verify_auth(body: AuthVerifyBody) -> JSONResponse:
     valid = (
         body.username == auth.username
         and bool(auth.passwordHash)
-        and _check_password(body.password, auth.passwordHash)
+        and check_password(body.password, auth.passwordHash)
     )
     if not valid:
         raise HTTPException(status_code=401, detail="Invalid credentials.")

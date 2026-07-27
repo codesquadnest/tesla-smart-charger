@@ -1,17 +1,24 @@
-# Define the Git hash as a build argument
-ARG GIT_HASH=b00b1c09e05a35b6019eb98d7c8bc62cc0cb6424
-
 # Build stage
 FROM golang:1.24 AS builder
 
-# Set the working directory inside the container
+# Pinned upstream release. Declared inside the stage — a pre-FROM ARG is out of
+# scope after FROM and would expand empty here.  The tag is what humans read;
+# the SHA is what's actually trusted, since a tag can be moved upstream.
+ARG VEHICLE_COMMAND_VERSION=v0.4.1
+ARG VEHICLE_COMMAND_SHA=49977a18fd68567501d59e16a6c9e4a8b9348544
+
 WORKDIR /app
 
-# Clone the repository, check out the specific commit, and build the binary
-RUN git clone https://github.com/teslamotors/vehicle-command.git && \
-    cd /app/vehicle-command/cmd/tesla-http-proxy && \
-    git checkout ${GIT_HASH} && \
-    CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o /app/tesla-http-proxy
+# Upstream's go.mod carries `replace` directives, so `go install pkg@version`
+# refuses to build it — shallow-clone the tag and build from the module root.
+# The rev-parse check fails the build loudly if the tag no longer points at the
+# reviewed commit, rather than silently building someone else's code.
+# CGO_ENABLED=0 produces the static binary the distroless runner requires.
+RUN git clone --branch ${VEHICLE_COMMAND_VERSION} --depth 1 \
+        https://github.com/teslamotors/vehicle-command.git && \
+    cd vehicle-command && \
+    test "$(git rev-parse HEAD)" = "${VEHICLE_COMMAND_SHA}" && \
+    CGO_ENABLED=0 go build -o /app/tesla-http-proxy ./cmd/tesla-http-proxy
 
 # Run stage
 FROM gcr.io/distroless/static-debian12 AS runner

@@ -273,11 +273,25 @@ function SecuritySection({ config }: { config: SystemConfig }) {
           ) : (
             <>
               <ShieldOff size={20} className="text-slate-400" />
-              <span className="text-slate-500">Authentication disabled</span>
+              <span className="text-slate-500">
+                Authentication disabled — vehicle controls (wake, charge limit,
+                refresh) are locked until you enable it.
+              </span>
             </>
           )}
         </div>
-      ) : (
+      ) : null}
+
+      {mode === 'view' && (
+        <p className="text-xs text-slate-400 mt-3">
+          Basic Auth only covers the wake / charge-limit / refresh commands —
+          the dashboard and the rest of the API stay open to anyone who can
+          reach this port. Don't expose this app directly to the internet; put
+          it behind a firewall, VPN, or a reverse proxy with its own auth.
+        </p>
+      )}
+
+      {mode === 'edit' && (
         <div className="space-y-4">
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input

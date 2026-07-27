@@ -3,7 +3,7 @@ Save generated certificate files in this directory.
 ## Generate certificates
 
 ```bash
-    git clone https://github.com/teslamotors/vehicle-command.git
+    git clone --branch v0.4.1 https://github.com/teslamotors/vehicle-command.git
     cd vehicle-command/cmd/tesla-keygen
     go get ./...
     go build ./...

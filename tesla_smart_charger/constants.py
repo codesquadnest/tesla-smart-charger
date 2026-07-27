@@ -57,6 +57,15 @@ TESLA_AUDIENCE = TESLA_FLEET_API_URLS["eu"]
 TESLA_API_VEHICLES_URL = "/api/1/vehicles"
 TESLA_API_VEHICLE_DATA_URL = "/api/1/vehicles/{id}/vehicle_data"
 TESLA_API_CHARGE_AMP_LIMIT_URL = "/api/1/vehicles/{id}/command/set_charging_amps"
+TESLA_API_COMMAND_URL = "/api/1/vehicles/{id}/command/{command}"
+# wake_up is not an end-to-end-signed command — it goes straight to the Fleet
+# API with a Bearer token, so it keeps working when the proxy is unavailable.
+TESLA_API_WAKE_UP_URL = "/api/1/vehicles/{id}/wake_up"
+
+# Accepted charge-limit range (Tesla reports charge_limit_soc_min = 50 on all
+# current vehicles).
+TESLA_CHARGE_LIMIT_MIN = 50
+TESLA_CHARGE_LIMIT_MAX = 100
 
 # Tesla OAuth scopes required by this application
 TESLA_OAUTH_SCOPES = (

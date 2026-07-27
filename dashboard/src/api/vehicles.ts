@@ -10,4 +10,20 @@ export const vehiclesApi = {
   remove: (id: string) => api.del<{ message: string }>(`/api/v1/vehicles/${id}`),
   listTeslaVehicles: (id: string) =>
     api.get<{ vehicles: TeslaVehicle[] }>(`/api/v1/vehicles/${id}/tesla-vehicles`),
+
+  wake: (id: string) =>
+    api.post<{ message: string; state: string | null }>(
+      `/api/v1/vehicles/${id}/wake`,
+      {},
+    ),
+  setChargeLimit: (id: string, percent: number) =>
+    api.post<{ message: string; percent: number }>(
+      `/api/v1/vehicles/${id}/charge-limit`,
+      { percent },
+    ),
+  refresh: (id: string) =>
+    api.post<{ message: string; refreshing: boolean }>(
+      `/api/v1/vehicles/${id}/refresh`,
+      {},
+    ),
 }

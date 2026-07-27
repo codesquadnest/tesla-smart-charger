@@ -24,9 +24,20 @@ export function Step9Security({ state, update, next, back }: Props) {
         </p>
       </div>
 
-      <Alert type="warning">
-        This app is designed for local network use. If you expose it to the
-        internet, enabling authentication is strongly recommended.
+      <Alert type="warning" title="Vehicle controls require authentication">
+        Wake, charge limit and refresh change your car's physical state, so the
+        API refuses them unless Basic Auth is enabled. Leave it off and those
+        controls stay locked in the dashboard — the energy monitor and automatic
+        overload handling keep working either way. You can enable it later under
+        Settings → Security.
+      </Alert>
+
+      <Alert type="info">
+        Basic Auth here only protects the wake / charge-limit / refresh
+        commands above — the dashboard and the rest of the API stay open to
+        anyone who can reach this port. Don't expose this app directly to the
+        internet; put it behind a firewall, VPN, or a reverse proxy that adds
+        its own authentication.
       </Alert>
 
       <div className="card p-6 space-y-5">

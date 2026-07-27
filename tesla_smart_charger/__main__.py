@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from tesla_smart_charger import constants, logger, utils
+from tesla_smart_charger import constants, logger, security, utils
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.cron import em_cron, token_cron
@@ -28,6 +28,7 @@ from tesla_smart_charger.handlers import overload_handler
 from tesla_smart_charger.models import VehicleConfig
 from tesla_smart_charger.routes import (
     auth_routes,
+    command_routes,
     config_routes,
     history_routes,
     status_routes,
@@ -123,14 +124,17 @@ app.add_middleware(
 
 # ─── Include versioned route modules ──────────────────────────────────────────
 
+security.init(app_config)
 config_routes.init(app_config)
 vehicle_routes.init(app_config)
+command_routes.init(app_config)
 auth_routes.init(app_config)
 status_routes.init(app_config, _monitor_active, overload_handler.is_session_active)
 
 app.include_router(status_routes.router)
 app.include_router(config_routes.router)
 app.include_router(vehicle_routes.router)
+app.include_router(command_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(history_routes.router)
 

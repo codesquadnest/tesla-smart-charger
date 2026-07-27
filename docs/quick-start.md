@@ -39,7 +39,7 @@ https://<your-domain>/.well-known/appspecific/com.tesla.3p.public-key.pem
 **Option A — using Go (tesla-keygen):**
 
 ```bash
-git clone https://github.com/teslamotors/vehicle-command.git
+git clone --branch v0.4.1 https://github.com/teslamotors/vehicle-command.git
 cd vehicle-command/cmd/tesla-keygen
 go build ./...
 ./tesla-keygen -key-file private-key.pem -keyring-type file -output public-key.pem create
@@ -121,6 +121,21 @@ docker compose up --build -d
 
 The dashboard is served at `http://<server-ip>:8000`.
 
+### Updating an existing install
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+`--build` is required, not optional: both services are built from source and
+the React dashboard is compiled *into* the app image, so `docker compose up -d`
+on its own keeps serving the old bundle.
+
+Your `config/`, `data/` and `certs/` directories carry over untouched — no
+migration step. After updating, note that the new manual
+[vehicle controls](#vehicle-controls) stay locked until you enable Basic Auth.
+
 ---
 
 ## 3. Onboarding wizard
@@ -138,7 +153,7 @@ JSON editing is needed.
 | 6 — Charger Settings | Per-vehicle max/min charge amps |
 | 7 — Energy Monitor | Shelly EM IP address and type — "Test connection" probes the device through the backend (no CORS issues) |
 | 8 — Circuit & Strategy | Home circuit limit, overload strategy (proportional or priority) |
-| 9 — Security | Optional HTTP Basic Auth for the dashboard |
+| 9 — Security | HTTP Basic Auth. Optional, but the manual vehicle controls (wake, charge limit, refresh) stay locked until you enable it — see [Vehicle controls](#vehicle-controls) |
 | 10 — Done | Review and apply — config is written to `config/system.json` and `config/vehicles.json` |
 
 After the wizard completes the application is fully operational.
@@ -188,9 +203,53 @@ These settings can be changed after onboarding via the dashboard **Settings** pa
 
 | Setting | Description |
 |---------|-------------|
-| `auth.enabled` | Enable HTTP Basic Auth for the dashboard and API. |
+| `auth.enabled` | Enable HTTP Basic Auth. Required for the manual vehicle controls — see [Vehicle controls](#vehicle-controls). Does **not** protect the rest of the API. |
 | `auth.username` | Basic Auth username. |
 | `auth.passwordHash` | Stored password hash (never returned by the API). |
+
+> **Warning:** Basic Auth covers only the vehicle command endpoints
+> (`POST /api/v1/vehicles/{id}/wake`, `/charge-limit`, `/refresh`). Status,
+> vehicle CRUD, config and `/overload` remain open to anyone who can reach the
+> API port. Keep the app on a trusted network — enabling Basic Auth is not a
+> substitute for that.
+
+---
+
+## Vehicle controls
+
+The dashboard can wake a car, change its charge limit, and force a telemetry
+refetch. These change your car's physical state, so they are the one part of
+the API that requires authentication — and they **fail closed**: with Basic
+Auth switched off the endpoints refuse the request rather than allowing it.
+
+| Endpoint | Effect |
+|---|---|
+| `POST /api/v1/vehicles/{id}/wake` | Asks Tesla to wake the car. Returns `202` as soon as Tesla accepts — the car takes a few more seconds to come online. |
+| `POST /api/v1/vehicles/{id}/charge-limit` | Sets the target state of charge. Body: `{"percent": 50-100}`. |
+| `POST /api/v1/vehicles/{id}/refresh` | Drops cached telemetry and refetches in the background. Returns `202`; fresh data arrives on a later poll. |
+
+### Enabling them
+
+1. **Settings → Security → Edit**, tick *Enable Basic Auth*, set a username and
+   password, and save.
+2. On the **Dashboard**, a sign-in panel appears above the vehicle cards. Enter
+   the same credentials to unlock the controls.
+
+Credentials are held for that browser tab only and cleared when you close it,
+so each new tab signs in again. Use the **Lock** button to sign out early.
+
+Leaving Basic Auth off is a supported choice — the energy monitor and automatic
+overload handling work exactly the same either way. You simply get no manual
+controls, and each card shows *Controls locked*.
+
+### Responses you may see
+
+| Status | Meaning |
+|---|---|
+| `403` | Basic Auth is not enabled — nothing to sign in to. Turn it on in Settings. |
+| `401` | Missing or wrong credentials. |
+| `409` | The car refused the command, usually because it is asleep. Wake it and retry. |
+| `408` | The car did not answer in time — normal when it is asleep. |
 
 ---
 

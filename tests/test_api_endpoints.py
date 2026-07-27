@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from tesla_smart_charger import constants
+from tesla_smart_charger import constants, security
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.routes import (
     auth_routes,
@@ -33,6 +33,7 @@ def _make_app(tmp_path: Path) -> tuple[FastAPI, AppConfig]:
 
     app = FastAPI()
 
+    security.init(app_cfg)
     config_routes.init(app_cfg)
     vehicle_routes.init(app_cfg)
     auth_routes.init(app_cfg)
@@ -75,6 +76,45 @@ def test_status_configured_false_by_default(tmp_path: Path) -> None:
 
     r = client.get("/api/v1/status")
     assert r.json()["configured"] is False
+
+
+def test_status_reports_auth_disabled_by_default(tmp_path: Path) -> None:
+    """The dashboard locks its command controls off this flag, so it must be honest."""
+    app, _ = _make_app(tmp_path)
+
+    assert TestClient(app).get("/api/v1/status").json()["authEnabled"] is False
+
+
+def test_status_reports_auth_enabled_once_configured(tmp_path: Path) -> None:
+    """The flag flips only when a username *and* password hash are both stored."""
+    app, app_cfg = _make_app(tmp_path)
+    client = TestClient(app)
+
+    app_cfg.update_system(
+        {"auth": {"enabled": True, "username": "u", "passwordHash": ""}}
+    )
+    assert client.get("/api/v1/status").json()["authEnabled"] is False
+
+    app_cfg.update_system({"auth": {"passwordHash": security.hash_password("pw")}})
+    assert client.get("/api/v1/status").json()["authEnabled"] is True
+
+
+def test_status_reports_auth_disabled_with_blank_username(tmp_path: Path) -> None:
+    """Enabled + passwordHash but no username must not report auth as usable."""
+    app, app_cfg = _make_app(tmp_path)
+    client = TestClient(app)
+
+    app_cfg.update_system(
+        {
+            "auth": {
+                "enabled": True,
+                "username": "",
+                "passwordHash": security.hash_password("pw"),
+            }
+        }
+    )
+
+    assert client.get("/api/v1/status").json()["authEnabled"] is False
 
 
 def test_status_monitor_and_overload_flags(tmp_path: Path) -> None:
