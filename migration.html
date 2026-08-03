@@ -1,0 +1,817 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="quick-start.html">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Migrating v1 → v2 - Tesla Smart Charger Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#migrating-from-v1-to-v2" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="Tesla Smart Charger Docs" class="md-header__button md-logo" aria-label="Tesla Smart Charger Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tesla Smart Charger Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Migrating v1 → v2
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/codesquadnest/tesla-smart-charger" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    codesquadnest/tesla-smart-charger
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="quick-start.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quick start
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="migration.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Migrating v1 → v2
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="Tesla Smart Charger Docs" class="md-nav__button md-logo" aria-label="Tesla Smart Charger Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tesla Smart Charger Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/codesquadnest/tesla-smart-charger" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    codesquadnest/tesla-smart-charger
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="quick-start.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating v1 → v2
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="migration.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating v1 → v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What changed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upgrade-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrade steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Upgrade steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-back-up-your-existing-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Back up your existing config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-update-the-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Update the repository
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-update-docker-composeyaml-volume-mounts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Update docker-compose.yaml volume mounts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-rebuild-and-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Rebuild and start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-automatically-on-first-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens automatically on first start
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-optional-review-migrated-config-in-the-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — (Optional) Review migrated config in the dashboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-migration-if-automatic-migration-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual migration (if automatic migration fails)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-more-vehicles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding more vehicles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="migrating-from-v1-to-v2">Migrating from v1 to v2</h1>
+<p>This document is for users who were running <strong>tesla-smart-charger v1</strong> (single
+vehicle, manual <code>config.json</code>) and want to upgrade to <strong>v2</strong> (multi-vehicle,
+onboarding wizard, structured config).</p>
+<p>If you are setting up for the first time, follow the
+<a href="quick-start.html">Quick start</a> instead.</p>
+<hr />
+<h2 id="what-changed">What changed</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>v1</th>
+<th>v2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Configuration</td>
+<td>Single flat <code>config.json</code> at project root</td>
+<td><code>config/system.json</code> + <code>config/vehicles.json</code></td>
+</tr>
+<tr>
+<td>Vehicles</td>
+<td>One vehicle, hardcoded fields in <code>config.json</code></td>
+<td>Multiple vehicles, managed through the dashboard</td>
+</tr>
+<tr>
+<td>OAuth</td>
+<td>Manual <code>curl</code> token exchange</td>
+<td>Built-in OAuth 2.0 + PKCE wizard (popup flow)</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>Basic status page</td>
+<td>Full React SPA — Dashboard, Vehicles, History, Settings</td>
+</tr>
+<tr>
+<td>Docker volumes</td>
+<td><code>./config.json:/app/config.json</code> bind-mount</td>
+<td><code>./config:/app/config</code> and <code>./data:/app/data</code> directories</td>
+</tr>
+<tr>
+<td>Token refresh</td>
+<td>Single cron job</td>
+<td>Per-vehicle cron, one thread per vehicle</td>
+</tr>
+<tr>
+<td>Overload strategy</td>
+<td>Single vehicle, fixed downstep</td>
+<td>Multi-vehicle: <strong>proportional</strong> or <strong>priority</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="upgrade-steps">Upgrade steps</h2>
+<h3 id="step-1-back-up-your-existing-config">Step 1 — Back up your existing config</h3>
+<pre><code class="language-bash">cp config.json config.json.v1.bak
+</code></pre>
+<h3 id="step-2-update-the-repository">Step 2 — Update the repository</h3>
+<pre><code class="language-bash">git pull origin main
+</code></pre>
+<h3 id="step-3-update-docker-composeyaml-volume-mounts">Step 3 — Update <code>docker-compose.yaml</code> volume mounts</h3>
+<p>v1 mapped a single file; v2 maps two directories.  Replace the old mount:</p>
+<pre><code class="language-yaml"># ❌ v1 — remove this
+volumes:
+  - ./config.json:/app/config.json
+</code></pre>
+<p>with the v2 mounts (already present if you pulled the updated
+<code>docker-compose.yaml</code>):</p>
+<pre><code class="language-yaml"># ✅ v2
+volumes:
+  - ./config:/app/config
+  - ./data:/app/data
+  - ./certs:/app/certs:ro
+</code></pre>
+<h3 id="step-4-rebuild-and-start">Step 4 — Rebuild and start</h3>
+<pre><code class="language-bash">docker compose up --build -d
+</code></pre>
+<h3 id="what-happens-automatically-on-first-start">What happens automatically on first start</h3>
+<p>When the application starts for the first time after the upgrade it looks for
+<code>config.json</code> in the project root.  If found — and <code>config/system.json</code> does
+not yet exist — it <strong>automatically migrates</strong> your settings:</p>
+<ul>
+<li><strong>System settings</strong> (<code>homeMaxAmps</code>, <code>energyMonitorIp</code>, <code>sleepTimeSecs</code>,
+  <code>downStepPercentage</code>, <code>upStepPercentage</code>, <code>hostIp</code>, <code>apiPort</code>) are written
+  to <code>config/system.json</code>.</li>
+<li><strong>Vehicle credentials</strong> (<code>teslaVehicleId</code>, <code>teslaAccessToken</code>,
+  <code>teslaRefreshToken</code>, <code>teslaHttpProxy</code>, <code>teslaClientId</code>, <code>chargerMaxAmps</code>,
+  <code>chargerMinAmps</code>) are written to <code>config/vehicles.json</code> as a single vehicle
+  named "My Tesla".</li>
+<li>The system is marked as <strong>already configured</strong> so the onboarding wizard is
+  not shown.</li>
+</ul>
+<p>Migration is a <strong>read-only</strong> operation on <code>config.json</code> — the original file is
+not deleted or modified.</p>
+<blockquote>
+<p><strong>Note:</strong> <code>region</code> defaults to <code>eu</code> and <code>voltage</code> to <code>230</code> V during migration.
+If you are outside the EU, review these in <strong>Settings</strong> afterwards.</p>
+</blockquote>
+<h3 id="step-5-optional-review-migrated-config-in-the-dashboard">Step 5 — (Optional) Review migrated config in the dashboard</h3>
+<p>Open <code>http://&lt;server-ip&gt;:8000</code>.  You should land directly on the Dashboard
+(not the wizard).  Navigate to <strong>Vehicles</strong> to rename your vehicle or adjust
+charge limits, and to <strong>Settings</strong> to review all system parameters.</p>
+<hr />
+<h2 id="manual-migration-if-automatic-migration-fails">Manual migration (if automatic migration fails)</h2>
+<p>If you prefer to migrate manually, or if the automatic migration produced
+unexpected values:</p>
+<ol>
+<li>Create the config directory:</li>
+</ol>
+<p><code>bash
+   mkdir -p config</code></p>
+<ol>
+<li>Write <code>config/system.json</code>:</li>
+</ol>
+<p><code>json
+   {
+     "homeMaxAmps": 30.0,
+     "voltage": 230.0,
+     "region": "eu",
+     "energyMonitorIp": "YOUR_SHELLY_IP",
+     "energyMonitorType": "shelly_em",
+     "sleepTimeSecs": 30,
+     "downStepPercentage": 0.5,
+     "upStepPercentage": 0.25,
+     "overloadStrategy": "proportional",
+     "hostIp": "YOUR_SERVER_IP",
+     "apiPort": 8000,
+     "auth": { "enabled": false, "username": "", "passwordHash": "" },
+     "configured": true
+   }</code></p>
+<ol>
+<li>Write <code>config/vehicles.json</code>:</li>
+</ol>
+<p><code>json
+   [
+     {
+       "id": "generate-a-uuid-here",
+       "name": "My Tesla",
+       "vin": "",
+       "teslaVehicleId": "YOUR_VEHICLE_ID",
+       "teslaAccessToken": "YOUR_ACCESS_TOKEN",
+       "teslaRefreshToken": "YOUR_REFRESH_TOKEN",
+       "teslaHttpProxy": "http://tesla-http-proxy:4443",
+       "teslaClientId": "YOUR_CLIENT_ID",
+       "chargerMaxAmps": 25.0,
+       "chargerMinAmps": 6.0,
+       "priority": 1,
+       "enabled": true
+     }
+   ]</code></p>
+<p>Generate a UUID with:</p>
+<p><code>bash
+   python3 -c "import uuid; print(uuid.uuid4())"</code></p>
+<ol>
+<li>Start the stack:</li>
+</ol>
+<p><code>bash
+   docker compose up --build -d</code></p>
+<hr />
+<h2 id="adding-more-vehicles">Adding more vehicles</h2>
+<p>After migration you have one vehicle.  To add more:</p>
+<ol>
+<li>Open the dashboard at <code>http://&lt;server-ip&gt;:8000</code>.</li>
+<li>Navigate to <strong>Vehicles → Add vehicle</strong>.</li>
+<li>Enter the vehicle credentials (you can obtain a new OAuth token pair by
+   clicking <strong>Authorize with Tesla</strong> — this opens the OAuth wizard popup and
+   returns tokens for whichever account you log in with).</li>
+</ol>
+<hr />
+<h2 id="rollback">Rollback</h2>
+<p>If you need to go back to v1, check out your last v1 version — a v1 release tag
+or the commit you upgraded from (see the repository's
+<a href="https://github.com/codesquadnest/tesla-smart-charger/releases">Releases</a> page):</p>
+<pre><code class="language-bash">git checkout &lt;v1-tag-or-commit&gt;
+# Restore the v1 docker-compose.yaml volume mount (./config.json:/app/config.json)
+docker compose up --build -d
+</code></pre>
+<p>Then restore your backed-up config:</p>
+<pre><code class="language-bash">cp config.json.v1.bak config.json
+</code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.path", "navigation.instant", "navigation.top", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
