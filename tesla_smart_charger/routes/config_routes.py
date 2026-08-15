@@ -45,6 +45,8 @@ class SystemConfigUpdate(BaseModel):
     upStepPercentage: float | None = None
     overloadStrategy: OverloadStrategy | None = None
     maxSessionDuration: int | None = None
+    solarSurplusEnabled: bool | None = None
+    solarTargetAmps: float | None = None
     hostIp: str | None = None
     apiPort: int | None = None
     configured: bool | None = None

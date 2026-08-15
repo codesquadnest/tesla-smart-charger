@@ -20,6 +20,9 @@ your home approaches its circuit limit, so you never trip the main breaker.
   settings.
 - **Overload strategies** — reduce charging **proportionally** across vehicles
   or by **priority** order.
+- **Solar surplus charging** — when your energy monitor reports a grid export,
+  charging ramps up to absorb the surplus instead of selling it back; grid
+  imports stay at a target level.
 
 ## Getting started
 

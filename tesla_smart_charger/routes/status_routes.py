@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from tesla_smart_charger import logger, security, telemetry_cache
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.cron import em_cron
+from tesla_smart_charger.handlers import solar_handler
 from tesla_smart_charger.models import SystemStatus
 
 tsc_logger = logger.get_logger()
@@ -51,6 +52,9 @@ def get_status() -> JSONResponse:
         if callable(_monitor_active)
         else _monitor_active,
         overloadActive=overload_active,
+        solarActive=solar_handler.is_surplus_active(),
+        solarSurplusEnabled=cfg.solarSurplusEnabled,
+        currentSurplusAmps=em_cron.LAST_SURPLUS_AMPS,
         authEnabled=security.auth_configured(),
         currentConsumptionAmps=em_cron.LAST_CONSUMPTION_AMPS,
         homeMaxAmps=cfg.homeMaxAmps,

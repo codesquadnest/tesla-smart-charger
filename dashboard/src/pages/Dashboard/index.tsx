@@ -4,7 +4,7 @@ import { useCommandAuth } from '@/hooks/useCommandAuth'
 import { Card, StatCard } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { Spinner } from '@/components/ui/Spinner'
-import { Zap, Thermometer, Activity, BatteryCharging } from 'lucide-react'
+import { Zap, Thermometer, Activity, BatteryCharging, Sun } from 'lucide-react'
 import { VehicleCard } from './VehicleCard'
 import { CommandAccess } from './CommandAccess'
 
@@ -50,8 +50,16 @@ export default function DashboardPage() {
         </Alert>
       )}
 
+      {/* Solar surplus banner */}
+      {status.solarActive && (
+        <Alert type="info" title="Charging from solar surplus">
+          A solar surplus session is active — charging amps are being sized to
+          absorb the grid export.
+        </Alert>
+      )}
+
       {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
         <StatCard
           label="Home consumption"
           value={
@@ -86,6 +94,19 @@ export default function DashboardPage() {
           sub={`${status.voltage}V grid`}
           icon={<BatteryCharging size={18} />}
         />
+        {status.solarSurplusEnabled && (
+          <StatCard
+            label="Solar surplus"
+            value={
+              status.currentSurplusAmps != null && status.currentSurplusAmps > 0
+                ? `${status.currentSurplusAmps.toFixed(1)} A`
+                : '0 A'
+            }
+            sub={status.solarActive ? 'Absorbing' : 'Watching'}
+            icon={<Sun size={18} />}
+            accent={status.solarActive ? 'green' : 'default'}
+          />
+        )}
       </div>
 
       {/* Vehicle cards */}

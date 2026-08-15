@@ -152,7 +152,7 @@ JSON editing is needed.
 | 5 — Select Vehicles | Pick which vehicles from your Tesla account to manage |
 | 6 — Charger Settings | Per-vehicle max/min charge amps |
 | 7 — Energy Monitor | Shelly EM IP address and type — "Test connection" probes the device through the backend (no CORS issues) |
-| 8 — Circuit & Strategy | Home circuit limit, overload strategy (proportional or priority) |
+| 8 — Circuit & Strategy | Home circuit limit, overload strategy (proportional or priority), and optional **solar surplus charging** (grid import target) |
 | 9 — Security | HTTP Basic Auth. Optional, but the manual vehicle controls (wake, charge limit, refresh) stay locked until you enable it — see [Vehicle controls](#vehicle-controls) |
 | 10 — Done | Review and apply — config is written to `config/system.json` and `config/vehicles.json` |
 
@@ -179,6 +179,19 @@ These settings can be changed after onboarding via the dashboard **Settings** pa
 |---------|-------------|
 | `energyMonitorType` | Hardware model. Currently only `shelly_em` is supported. |
 | `energyMonitorIp` | IP address of the energy monitor on the local network. |
+
+### Solar Surplus
+
+| Setting | Description |
+|---------|-------------|
+| `solarSurplusEnabled` | Enable surplus-solar charging. Requires the energy monitor CT to be clamped on the **grid feed-in point**, so a negative (exporting) reading means surplus solar. |
+| `solarTargetAmps` | Desired net grid import while in solar mode (A). `0` = absorb every surplus amp; a small buffer (default `1.0`) avoids flapping between import and export. |
+
+When enabled, the monitor reports an export, the app raises charging current to
+absorb the surplus instead of selling it back, and when no surplus is available
+the cars sit at their minimum amps rather than pulling grid power purely to
+charge. Grid protection is unchanged: consumption above `homeMaxAmps` still
+triggers the overload handler, which takes priority over a solar session.
 
 ### Circuit & Strategy
 
@@ -282,7 +295,9 @@ The energy monitor (Shelly EM poller) is enabled by the `-m` / `--monitor` flag.
   ```
 
 When consumption exceeds `homeMaxAmps`, the monitor triggers overload handling
-directly (throttling charging vehicles); no internal HTTP call is made.
+directly (throttling charging vehicles); no internal HTTP call is made. When it
+reads a net grid export and [solar surplus charging](#solar-surplus) is
+enabled, it starts a solar session that absorbs the surplus into the cars.
 
 ---
 

@@ -22,6 +22,8 @@ export interface SystemConfig {
   upStepPercentage: number
   overloadStrategy: OverloadStrategyType
   maxSessionDuration: number
+  solarSurplusEnabled: boolean
+  solarTargetAmps: number
   hostIp: string
   apiPort: number
   corsOrigins: string[]
@@ -62,6 +64,12 @@ export interface SystemStatus {
   configured: boolean
   monitorActive: boolean
   overloadActive: boolean
+  // Whether a solar surplus-tracking session is currently active.
+  solarActive: boolean
+  // Whether solar surplus mode is configured.
+  solarSurplusEnabled: boolean
+  // Current surplus export in amps (0 when importing).
+  currentSurplusAmps: number | null
   // Whether Basic Auth is configured. Vehicle commands fail closed without it,
   // so the dashboard locks its controls and explains why when this is false.
   authEnabled: boolean

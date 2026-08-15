@@ -1,6 +1,7 @@
 """Energy-monitor polling cron — triggers overload handling when needed."""
 
 import threading
+import time
 
 from retrying import retry
 
@@ -8,7 +9,7 @@ from tesla_smart_charger import constants, logger
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.controllers import em_controller as _em_controller
 from tesla_smart_charger.controllers.em_controller import EnergyMonitorController
-from tesla_smart_charger.handlers import overload_handler
+from tesla_smart_charger.handlers import overload_handler, solar_handler
 
 tsc_logger = logger.get_logger()
 
@@ -19,6 +20,15 @@ OVERLOAD = False
 # read by the status endpoint so the dashboard shows live home consumption.
 # Initialised to None so the dashboard shows "—" until the first poll.
 LAST_CONSUMPTION_AMPS: float | None = None
+
+# Latest export in amps (0 when consuming) — for the solar surplus indicator.
+LAST_SURPLUS_AMPS: float | None = None
+
+# Cooldown between solar trigger attempts — the solar handler runs its own
+# supervised thread, so the cron only needs to kick it off once surplus is
+# detected, not on every poll.
+_SOLAR_TRIGGER_COOLDOWN_SECS = 30
+_last_solar_attempt: float = 0.0
 
 
 def _toggle_overload(*, overload: bool) -> bool:
@@ -69,8 +79,9 @@ def _check_power_consumption(
             raise ValueError(msg)  # noqa: TRY301
         em_amps = float(watts) / max(cfg.voltage, 1.0)
         tsc_logger.debug("Consumption: %.2f A (%.1f W)", em_amps, watts)
-        global LAST_CONSUMPTION_AMPS
+        global LAST_CONSUMPTION_AMPS, LAST_SURPLUS_AMPS
         LAST_CONSUMPTION_AMPS = em_amps
+        LAST_SURPLUS_AMPS = max(0.0, -em_amps)
     except (ValueError, TypeError):
         tsc_logger.exception("Error reading consumption")
         return
@@ -86,6 +97,26 @@ def _check_power_consumption(
             _toggle_overload(overload=False)  # Reset so next poll can retry
     else:
         _toggle_overload(overload=False)
+        if LAST_SURPLUS_AMPS is not None and LAST_SURPLUS_AMPS > 0.5:
+            _start_solar_if_needed(app_config)
+
+
+def _start_solar_if_needed(app_config: AppConfig) -> None:
+    """Start a solar surplus session when surplus is exporting and solar mode is on."""
+    cfg = app_config.system
+    global _last_solar_attempt
+    if not cfg.solarSurplusEnabled:
+        return
+    if time.monotonic() - _last_solar_attempt < _SOLAR_TRIGGER_COOLDOWN_SECS:
+        return
+    _last_solar_attempt = time.monotonic()
+    started, msg = solar_handler.trigger_solar(app_config)
+    if started:
+        tsc_logger.info("Solar surplus session triggered.")
+    elif solar_handler.is_surplus_active():
+        pass  # already running — no noise
+    else:
+        tsc_logger.debug("Solar trigger skipped: %s", msg)
 
 
 def start_cron_monitor(stop_event: threading.Event, app_config: AppConfig) -> None:

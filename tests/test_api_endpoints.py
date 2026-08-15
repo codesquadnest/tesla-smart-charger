@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from tesla_smart_charger import constants, security
 from tesla_smart_charger.app_config import AppConfig
+from tesla_smart_charger.cron import em_cron
 from tesla_smart_charger.routes import (
     auth_routes,
     config_routes,
@@ -163,6 +164,54 @@ def test_post_config_updates_field(tmp_path: Path) -> None:
     assert r.json()["homeMaxAmps"] == 55.0
     # Persisted
     assert app_cfg.system.homeMaxAmps == 55.0
+
+
+def test_post_config_updates_solar_fields(tmp_path: Path) -> None:
+    """POST /api/v1/config accepts and persists the solar surplus fields."""
+    app, app_cfg = _make_app(tmp_path)
+    client = TestClient(app)
+
+    r = client.post(
+        "/api/v1/config",
+        json={"solarSurplusEnabled": True, "solarTargetAmps": 2.0},
+    )
+    assert r.status_code == 200
+    assert r.json()["solarSurplusEnabled"] is True
+    assert r.json()["solarTargetAmps"] == 2.0
+    assert app_cfg.system.solarSurplusEnabled is True
+    assert app_cfg.system.solarTargetAmps == 2.0
+
+
+def test_get_config_includes_solar_fields_defaults(tmp_path: Path) -> None:
+    """GET /api/v1/config exposes solar fields with their defaults."""
+    app, _ = _make_app(tmp_path)
+    client = TestClient(app)
+
+    body = client.get("/api/v1/config").json()
+    assert body["solarSurplusEnabled"] is False
+    assert body["solarTargetAmps"] == 1.0
+
+
+def test_status_reports_solar_fields(tmp_path: Path) -> None:
+    """Status exposes solar mode state and surplus reading."""
+    app, app_cfg = _make_app(tmp_path)
+    client = TestClient(app)
+
+    # Fresh config: solar off, no surplus.
+    body = client.get("/api/v1/status").json()
+    assert body["solarSurplusEnabled"] is False
+    assert body["solarActive"] is False
+    assert body["currentSurplusAmps"] is None
+
+    app_cfg.update_system({"solarSurplusEnabled": True})
+    # Simulate the cron having recorded an export.
+    em_cron.LAST_SURPLUS_AMPS = 4.0
+    try:
+        body = client.get("/api/v1/status").json()
+        assert body["solarSurplusEnabled"] is True
+        assert body["currentSurplusAmps"] == 4.0
+    finally:
+        em_cron.LAST_SURPLUS_AMPS = None
 
 
 def test_post_config_empty_body_returns_400(tmp_path: Path) -> None:

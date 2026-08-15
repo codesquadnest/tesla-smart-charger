@@ -20,6 +20,7 @@ If you are setting up for the first time, follow the
 | Docker volumes | `./config.json:/app/config.json` bind-mount | `./config:/app/config` and `./data:/app/data` directories |
 | Token refresh | Single cron job | Per-vehicle cron, one thread per vehicle |
 | Overload strategy | Single vehicle, fixed downstep | Multi-vehicle: **proportional** or **priority** |
+| Solar surplus | Not supported | Optional **solar surplus charging** — absorb a grid export into the cars (see the [Quick start](quick-start.md#solar-surplus)) |
 
 ---
 
@@ -118,6 +119,8 @@ unexpected values:
      "downStepPercentage": 0.5,
      "upStepPercentage": 0.25,
      "overloadStrategy": "proportional",
+     "solarSurplusEnabled": false,
+     "solarTargetAmps": 1.0,
      "hostIp": "YOUR_SERVER_IP",
      "apiPort": 8000,
      "auth": { "enabled": false, "username": "", "passwordHash": "" },

@@ -86,6 +86,37 @@ export function Step8CircuitStrategy({ state, update, next, back }: Props) {
         />
       </div>
 
+      <div className="card p-6 space-y-5">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={state.solarSurplusEnabled}
+            onChange={(e) => update({ solarSurplusEnabled: e.target.checked })}
+            className="rounded border-slate-300"
+          />
+          <span className="font-medium">Enable solar surplus charging</span>
+        </label>
+        <p className="text-xs text-slate-500 -mt-2">
+          Optional — for homes with solar. The energy monitor must be clamped on
+          the grid feed-in point. When it reads an export, charging ramps up to
+          absorb the surplus; when there's no surplus, cars idle at their
+          minimum amps.
+        </p>
+        {state.solarSurplusEnabled && (
+          <Input
+            label="Grid import target (A)"
+            info="How much grid import to tolerate while in solar mode."
+            type="number"
+            min={0}
+            max={state.homeMaxAmps}
+            step={0.5}
+            value={state.solarTargetAmps}
+            onChange={(e) => update({ solarTargetAmps: Number(e.target.value) })}
+            hint="0 = export nothing; a ~1A buffer avoids flapping between import and export."
+          />
+        )}
+      </div>
+
       <div className="flex gap-3">
         <Button variant="secondary" onClick={back}>
           Back

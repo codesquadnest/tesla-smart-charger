@@ -41,6 +41,14 @@ When the energy monitor cron detects consumption over `homeMaxAmps`, it calls
 `overload_handler` directly (no internal HTTP round-trip); the legacy `GET
 /overload` endpoint exists only for manual/back-compat triggering.
 
+Solar surplus sessions work the same way: when the cron's grid reading is a net
+export, `solar_handler.trigger_solar()` spawns its own supervised daemon thread
+(`tsc_solar_handler_thread`). Overload always wins — a solar session yields the
+moment `overload_handler.is_session_active()` becomes true, and
+`trigger_solar()` refuses to start while an overload session is running. The
+solar loop reads `config/system.json` afresh each iteration (via the shared
+`AppConfig`), so toggling `solarSurplusEnabled` off mid-session stops it.
+
 **Layout**: sticky sidebar (`w-60`) + `<main>` with `overflow-y-auto`
 (scrollable). Sidebar rendered first in DOM, main after.
 
@@ -105,6 +113,7 @@ Local full-stack dev without Docker: run the backend (`uv run tesla-smart-charge
 | `tesla_smart_charger/app_config.py` | `AppConfig` — loads/persists `config/system.json` + vehicles |
 | `tesla_smart_charger/tesla_api.py` | Tesla API client (Fleet API + proxy) |
 | `tesla_smart_charger/handlers/overload_handler.py` | Overload detection + ramp-up/ramp-down logic |
+| `tesla_smart_charger/handlers/solar_handler.py` | Solar surplus session: sizes charging current to absorb a grid export, yields to overload |
 | `tesla_smart_charger/cron/em_cron.py` | Energy monitor polling cron |
 | `tesla_smart_charger/cron/token_cron.py` | OAuth token refresh cron |
 | `tesla_smart_charger/telemetry_cache.py` | Per-vehicle telemetry cache (TTLs, background refresh, generation-guarded invalidation). Reads return copies — the cached instance is shared with the refresh thread |

@@ -38,6 +38,8 @@ export function Step10Done({ state, back, finish }: Props) {
         downStepPercentage: state.downStepPercentage,
         overloadStrategy: state.overloadStrategy as 'proportional' | 'priority',
         maxSessionDuration: state.maxSessionDuration,
+        solarSurplusEnabled: state.solarSurplusEnabled,
+        solarTargetAmps: state.solarTargetAmps,
       })
 
       // 2. Add each selected vehicle
@@ -99,6 +101,10 @@ export function Step10Done({ state, back, finish }: Props) {
             <Row label="Home max amps" value={`${state.homeMaxAmps}A`} />
             <Row label="Max session duration" value={`${state.maxSessionDuration}s`} />
             <Row label="Overload strategy" value={state.overloadStrategy} />
+            <Row
+              label="Solar surplus"
+              value={state.solarSurplusEnabled ? `Enabled (target ${state.solarTargetAmps}A)` : 'Disabled'}
+            />
             <Row label="Energy monitor" value={`${state.energyMonitorType} @ ${state.energyMonitorIp}`} />
             <Row
               label="Vehicles"

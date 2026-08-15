@@ -21,6 +21,7 @@ The Tesla Smart Charger is a Python application that dynamically controls the ch
 - **Guided onboarding** — a 10-step OAuth 2.0 + PKCE wizard; no manual `config.json` editing.
 - **React dashboard** — live status, per-vehicle controls, overload history, and settings.
 - **Overload strategies** — reduce charging **proportionally** across vehicles or by **priority** order.
+- **Solar surplus charging** — with a grid-feed-in energy monitor, absorb rooftop export into the cars instead of selling it back, keeping grid imports at a target level.
 
 ## Getting started
 

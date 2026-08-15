@@ -33,6 +33,7 @@ export default function SettingsPage() {
 
       <SystemSection config={config} />
       <EnergyMonitorSection config={config} />
+      <SolarSection config={config} />
       <CircuitSection config={config} />
       <SecuritySection config={config} />
     </div>
@@ -135,6 +136,62 @@ function EnergyMonitorSection({ config }: { config: SystemConfig }) {
           value={form.energyMonitorIp}
           onChange={(e) => setForm((f) => ({ ...f, energyMonitorIp: e.target.value }))}
         />
+      </div>
+      <SaveRow saving={update.isPending} saved={saved} onSave={save} error={update.error} />
+    </Card>
+  )
+}
+
+function SolarSection({ config }: { config: SystemConfig }) {
+  const update = useUpdateConfig()
+  const [form, setForm] = useState({
+    solarSurplusEnabled: config.solarSurplusEnabled,
+    solarTargetAmps: config.solarTargetAmps,
+  })
+  const [saved, setSaved] = useState(false)
+
+  const save = async () => {
+    await update.mutateAsync(form)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <Card>
+      <p className="text-base font-semibold text-slate-900 mb-4">Solar Surplus</p>
+      <div className="space-y-4">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.solarSurplusEnabled}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, solarSurplusEnabled: e.target.checked }))
+            }
+            className="rounded border-slate-300"
+          />
+          <span className="font-medium">Enable solar surplus charging</span>
+        </label>
+        <p className="text-xs text-slate-400">
+          With solar panels, the energy monitor reads your grid feed-in. When
+          it shows an export (surplus), the charger ramps up to absorb it
+          instead of selling it back. When there's no surplus, each car idles at
+          its minimum amps. Requires the energy monitor CT to be clamped on the
+          grid feed-in point.
+        </p>
+        {form.solarSurplusEnabled && (
+          <Input
+            label="Grid import target (A)"
+            info="How much grid import to tolerate while in solar mode. 0 = export nothing, use every surplus amp for charging. A small buffer around 1A avoids flapping between import/export."
+            type="number"
+            step={0.5}
+            min={0}
+            max={config.homeMaxAmps}
+            value={form.solarTargetAmps}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, solarTargetAmps: toNum(e.target.valueAsNumber, f.solarTargetAmps) }))
+            }
+          />
+        )}
       </div>
       <SaveRow saving={update.isPending} saved={saved} onSave={save} error={update.error} />
     </Card>

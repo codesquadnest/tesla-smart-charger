@@ -66,6 +66,11 @@ class SystemConfig(BaseModel):
     maxSessionDuration: int = (
         600  # Maximum supervised session duration in seconds (default 10 min)
     )
+    # Solar surplus charging: when enabled the solar handler tracks the grid
+    # feed-in (negative EM reading = exporting) and sizes charging current to
+    # absorb it, keeping grid import at/under solarTargetAmps.
+    solarSurplusEnabled: bool = False
+    solarTargetAmps: float = 1.0  # Desired grid import while in solar mode (A)
     hostIp: str = "localhost"
     apiPort: int = 8000
     corsOrigins: list[str] = Field(default_factory=lambda: ["*"])
@@ -113,6 +118,12 @@ class SystemStatus(BaseModel):
     configured: bool
     monitorActive: bool
     overloadActive: bool
+    # Whether a solar surplus-tracking session is currently active.
+    solarActive: bool = False
+    # Whether solar surplus mode is configured/enabled.
+    solarSurplusEnabled: bool = False
+    # Current surplus export in amps (0 when consuming or not metered).
+    currentSurplusAmps: float | None = None
     # Whether Basic Auth is configured. Vehicle command endpoints fail closed
     # without it, so the dashboard uses this to lock its controls and explain why.
     authEnabled: bool = False

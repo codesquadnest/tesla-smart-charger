@@ -47,6 +47,8 @@ export interface WizardState {
   downStepPercentage: number
   overloadStrategy: string
   maxSessionDuration: number
+  solarSurplusEnabled: boolean
+  solarTargetAmps: number
   // Step 9
   authEnabled: boolean
   authUsername: string
@@ -80,6 +82,8 @@ function defaultState(): WizardState {
     downStepPercentage: 0.5,
     overloadStrategy: 'proportional',
     maxSessionDuration: 600,
+    solarSurplusEnabled: false,
+    solarTargetAmps: 1,
     authEnabled: false,
     authUsername: '',
     authPassword: '',
