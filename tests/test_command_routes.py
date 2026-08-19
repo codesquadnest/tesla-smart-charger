@@ -314,3 +314,91 @@ def test_refresh_evicts_cache_and_schedules(
     assert r.json()["refreshing"] is True
     assert started == [vid]
     assert telemetry_cache.age(vid) is None
+
+
+# ─── Charge start/stop ─────────────────────────────────────────────────────────
+
+
+def test_start_charge_calls_tesla_and_invalidates_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /charge/start forwards to start_charge and drops the cached telemetry."""
+    received: list[str] = []
+
+    def _fake_start(_self: TeslaAPI) -> dict:
+        received.append("start")
+        return {"response": {"result": True}}
+
+    monkeypatch.setattr(TeslaAPI, "start_charge", _fake_start)
+    client, vid = _client_with_vehicle(tmp_path)
+    vehicle = next(v for v in command_routes._app_config.vehicles if v.id == vid)
+    telemetry_cache._cache[vid] = (0.0, telemetry_cache.base_status(vehicle))
+
+    r = client.post(f"/api/v1/vehicles/{vid}/charge/start", auth=CREDS)
+
+    assert r.status_code == 200
+    assert received == ["start"]
+    assert telemetry_cache.age(vid) is None
+
+
+def test_stop_charge_calls_tesla_and_invalidates_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """POST /charge/stop forwards to stop_charge and drops the cached telemetry."""
+    received: list[str] = []
+
+    def _fake_stop(_self: TeslaAPI) -> dict:
+        received.append("stop")
+        return {"response": {"result": True}}
+
+    monkeypatch.setattr(TeslaAPI, "stop_charge", _fake_stop)
+    client, vid = _client_with_vehicle(tmp_path)
+    vehicle = next(v for v in command_routes._app_config.vehicles if v.id == vid)
+    telemetry_cache._cache[vid] = (0.0, telemetry_cache.base_status(vehicle))
+
+    r = client.post(f"/api/v1/vehicles/{vid}/charge/stop", auth=CREDS)
+
+    assert r.status_code == 200
+    assert received == ["stop"]
+    assert telemetry_cache.age(vid) is None
+
+
+def test_start_charge_surfaces_vehicle_rejection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A car that refuses the start charge command must not be reported as success."""
+    _patch_tesla_post(
+        monkeypatch, {"response": {"result": False, "reason": "vehicle unavailable"}}
+    )
+    client, vid = _client_with_vehicle(tmp_path)
+
+    r = client.post(f"/api/v1/vehicles/{vid}/charge/start", auth=CREDS)
+
+    assert r.status_code == 409
+    assert "vehicle unavailable" in r.json()["detail"]
+
+
+def test_stop_charge_surfaces_vehicle_rejection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A car that refuses the stop charge command must not be reported as success."""
+    _patch_tesla_post(
+        monkeypatch, {"response": {"result": False, "reason": "vehicle unavailable"}}
+    )
+    client, vid = _client_with_vehicle(tmp_path)
+
+    r = client.post(f"/api/v1/vehicles/{vid}/charge/stop", auth=CREDS)
+
+    assert r.status_code == 409
+    assert "vehicle unavailable" in r.json()["detail"]
+
+
+@pytest.mark.parametrize("path", ["charge/start", "charge/stop"])
+def test_charge_commands_require_credentials(tmp_path: Path, path: str) -> None:
+    """Charge start/stop commands require credentials like other commands."""
+    client, vid = _client_with_vehicle(tmp_path)
+
+    r = client.post(f"/api/v1/vehicles/{vid}/{path}")
+
+    assert r.status_code == 401
+    assert r.headers["WWW-Authenticate"].startswith("Basic")
