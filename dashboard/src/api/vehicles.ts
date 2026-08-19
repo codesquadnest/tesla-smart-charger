@@ -21,6 +21,16 @@ export const vehiclesApi = {
       `/api/v1/vehicles/${id}/charge-limit`,
       { percent },
     ),
+  startCharge: (id: string) =>
+    api.post<{ message: string }>(
+      `/api/v1/vehicles/${id}/charge/start`,
+      {},
+    ),
+  stopCharge: (id: string) =>
+    api.post<{ message: string }>(
+      `/api/v1/vehicles/${id}/charge/stop`,
+      {},
+    ),
   refresh: (id: string) =>
     api.post<{ message: string; refreshing: boolean }>(
       `/api/v1/vehicles/${id}/refresh`,

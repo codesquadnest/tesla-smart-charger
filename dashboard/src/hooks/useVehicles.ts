@@ -80,3 +80,19 @@ export function useSetChargeLimit(id: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['status'] }),
   })
 }
+
+export function useStartCharge(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vehiclesApi.startCharge(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['status'] }),
+  })
+}
+
+export function useStopCharge(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => vehiclesApi.stopCharge(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['status'] }),
+  })
+}

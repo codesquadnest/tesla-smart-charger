@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RefreshCw, Power, Lock } from 'lucide-react'
+import { RefreshCw, Power, Lock, BatteryCharging } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
@@ -9,6 +9,8 @@ import {
   useRefreshVehicle,
   useWakeVehicle,
   useSetChargeLimit,
+  useStartCharge,
+  useStopCharge,
 } from '@/hooks/useVehicles'
 import { cn, formatAge } from '@/lib/utils'
 import type { VehicleStatus } from '@/lib/types'
@@ -40,6 +42,8 @@ export function VehicleCard({
 
   const refresh = useRefreshVehicle()
   const wake = useWakeVehicle()
+  const startCharge = useStartCharge(v.id)
+  const stopCharge = useStopCharge(v.id)
 
   const chargePct =
     v.chargerActualCurrent != null && v.chargerMaxAmps > 0
@@ -55,12 +59,16 @@ export function VehicleCard({
       : v.telemetryAgeSecs + (now - dataUpdatedAt) / 1000
 
   const busy = v.refreshing || refresh.isPending
-  const actionError = (refresh.error ?? wake.error) as Error | null
+  const actionError = (refresh.error ?? wake.error ?? startCharge.error ?? stopCharge.error) as Error | null
 
   // Only offer Wake once we've actually confirmed the car is offline. While
   // `pending` we haven't checked yet, and without a teslaVehicleId the wake
   // call would 400.
   const showWake = !v.pending && v.online === false && Boolean(v.teslaVehicleId)
+
+  // Show start/stop charge buttons when vehicle is online and we have command access
+  const isCharging = v.chargingState === 'Charging'
+  const showChargeControls = canCommand && v.online === true && !v.pending
 
   return (
     <Card>
@@ -149,6 +157,28 @@ export function VehicleCard({
               >
                 <Power size={14} />
                 Wake
+              </Button>
+            )}
+            {showChargeControls && !isCharging && (
+              <Button
+                variant="primary"
+                size="sm"
+                loading={startCharge.isPending}
+                onClick={() => startCharge.mutate()}
+              >
+                <BatteryCharging size={14} />
+                Start
+              </Button>
+            )}
+            {showChargeControls && isCharging && (
+              <Button
+                variant="danger"
+                size="sm"
+                loading={stopCharge.isPending}
+                onClick={() => stopCharge.mutate()}
+              >
+                <Power size={14} />
+                Stop
               </Button>
             )}
             {/* Not gated on `busy` — it only toggles a local form, and a

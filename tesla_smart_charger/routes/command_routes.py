@@ -99,3 +99,27 @@ def refresh_vehicle(vehicle_id: str) -> JSONResponse:
         {"message": "Refresh scheduled", "refreshing": True},
         status_code=202,
     )
+
+
+@router.post("/{vehicle_id}/charge/start")
+def start_charge(vehicle_id: str) -> JSONResponse:
+    """Start charging the vehicle."""
+    vehicle = _require_vehicle(vehicle_id)
+    TeslaAPI(vehicle).start_charge()
+    telemetry_cache.invalidate(vehicle.id)
+    return JSONResponse(
+        {"message": "Charge start requested"},
+        status_code=200,
+    )
+
+
+@router.post("/{vehicle_id}/charge/stop")
+def stop_charge(vehicle_id: str) -> JSONResponse:
+    """Stop charging the vehicle."""
+    vehicle = _require_vehicle(vehicle_id)
+    TeslaAPI(vehicle).stop_charge()
+    telemetry_cache.invalidate(vehicle.id)
+    return JSONResponse(
+        {"message": "Charge stop requested"},
+        status_code=200,
+    )

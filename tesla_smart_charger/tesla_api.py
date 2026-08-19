@@ -276,6 +276,24 @@ class TeslaAPI:
             tsc_logger.debug(response)
         return response.get("response", {})
 
+    def start_charge(self) -> dict:
+        """Command this vehicle to start charging. Requires VIN."""
+        if not self.vehicle.vin:
+            raise HTTPException(
+                status_code=400,
+                detail="VIN is required for charge commands",
+            )
+        return self._send_command("charge_start", {})
+
+    def stop_charge(self) -> dict:
+        """Command this vehicle to stop charging. Requires VIN."""
+        if not self.vehicle.vin:
+            raise HTTPException(
+                status_code=400,
+                detail="VIN is required for charge commands",
+            )
+        return self._send_command("charge_stop", {})
+
     def refresh_token(self, region: str = "eu") -> tuple[str, str] | None:
         """
         Exchange the vehicle's refresh_token for a new access/refresh token pair.
