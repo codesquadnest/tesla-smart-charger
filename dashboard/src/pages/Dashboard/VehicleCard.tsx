@@ -161,7 +161,7 @@ export function VehicleCard({
             )}
             {showChargeControls && !isCharging && (
               <Button
-                variant="secondary"
+                variant="primary"
                 size="sm"
                 loading={startCharge.isPending}
                 onClick={() => startCharge.mutate()}
