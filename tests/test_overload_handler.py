@@ -135,10 +135,18 @@ def test_session_flag_toggle() -> None:
 # ─── _intended_amp_limit ──────────────────────────────────────────────────────
 
 
-def test_intended_amp_limit_reads_charge_amps() -> None:
-    """User's requested limit is read from charge_amps first."""
+def test_intended_amp_limit_prefers_current_request() -> None:
+    """User's requested limit is read from charge_current_request first."""
     vehicle = _make_vehicle()
     data = {"charge_state": {"charge_amps": 20, "charge_current_request": 22}}
+
+    assert overload_handler._intended_amp_limit(data, vehicle) == 22
+
+
+def test_intended_amp_limit_falls_back_to_charge_amps() -> None:
+    """charge_amps is used as a compatibility fallback when the setpoint is absent."""
+    vehicle = _make_vehicle()
+    data = {"charge_state": {"charge_amps": 20}}
 
     assert overload_handler._intended_amp_limit(data, vehicle) == 20
 

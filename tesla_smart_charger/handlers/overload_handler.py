@@ -121,10 +121,12 @@ def _intended_amp_limit(data: dict, vehicle: VehicleConfig) -> float:
     """
     Return the user-requested charge amp limit, else the configured max.
 
-    ``charge_amps`` is what the driver asked for in the vehicle app; the smart
-    charger must never ramp back above it after clearing an overload.
+    ``charge_current_request`` is what the driver asked for in the vehicle app;
+    the smart charger must never ramp back above it after clearing an overload.
+    ``charge_amps`` reports the measured line current, not the setpoint, so it
+    is only kept as a compatibility fallback.
     """
-    for key in ("charge_amps", "charge_current_request"):
+    for key in ("charge_current_request", "charge_amps"):
         value = data.get("charge_state", {}).get(key)
         if value is None:
             continue
