@@ -67,7 +67,9 @@ export function VehicleCard({
   const showWake = !v.pending && v.online === false && Boolean(v.teslaVehicleId)
 
   // Show start/stop charge buttons when vehicle is online and we have command access
-  const isCharging = v.chargingState === 'Charging'
+  // Tesla charging_state values: Charging, Supercharging, Complete, Stopped, Disconnected, NoPower
+  const isCharging = ['Charging', 'Supercharging'].includes(v.chargingState ?? '')
+    || (v.chargerActualCurrent != null && v.chargerActualCurrent > 0)
   const showChargeControls = canCommand && v.online === true && !v.pending
 
   return (
