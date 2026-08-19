@@ -4,11 +4,11 @@ import math
 import sqlite3
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from fastapi import HTTPException
 
-from tesla_smart_charger import constants, logger
+from tesla_smart_charger import constants, logger, telemetry_cache
 from tesla_smart_charger.app_config import AppConfig
 from tesla_smart_charger.controllers import db_controller
 from tesla_smart_charger.controllers import em_controller as _em_controller
@@ -117,6 +117,40 @@ def _calculate_new_charge_limit(
     return math.floor(new_limit)
 
 
+def _intended_amp_limit(data: dict, vehicle: VehicleConfig) -> float:
+    """
+    Return the user-requested charge amp limit, else the configured max.
+
+    ``charge_current_request`` is what the driver asked for in the vehicle app;
+    the smart charger must never ramp back above it after clearing an overload.
+    ``charge_amps`` reports the measured line current, not the setpoint, so it
+    is only kept as a compatibility fallback.
+    """
+    for key in ("charge_current_request", "charge_amps"):
+        value = data.get("charge_state", {}).get(key)
+        if value is None:
+            continue
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return float(vehicle.chargerMaxAmps)
+
+
+def _ramp_up_ceiling(
+    vehicle: VehicleConfig, intended_amperage: dict[str, float]
+) -> float:
+    """
+    Return the highest amp limit ramp-up may apply for a vehicle.
+
+    Never exceeds the user's requested limit from the vehicle app, nor the
+    configured safety maximum.
+    """
+    configured_max = float(vehicle.chargerMaxAmps)
+    intended = intended_amperage.get(vehicle.id, configured_max)
+    return min(intended, configured_max)
+
+
 def _get_consumption(em_ctrl: EnergyMonitorController, app_config: AppConfig) -> float:
     """Return current consumption in amps, 0.0 on error."""
     voltage = app_config.system.voltage
@@ -198,6 +232,7 @@ def _apply_proportional(
         if new_limit != math.floor(current):
             try:
                 api.set_charge_amp_limit(new_limit)
+                telemetry_cache.invalidate(vehicle.id)
                 changed = True
             except HTTPException:
                 tsc_logger.exception("Failed to set charge limit for %s", vehicle.id)
@@ -237,6 +272,7 @@ def _apply_priority(
         if new_limit != math.floor(current):
             try:
                 api.set_charge_amp_limit(new_limit)
+                telemetry_cache.invalidate(vehicle.id)
                 remaining_excess -= reduction
                 changed = True
             except HTTPException:
@@ -265,6 +301,7 @@ def trigger_overload(app_config: AppConfig) -> tuple[bool, str]:
 
     cfg = app_config.system
     initial_applied = False
+    intended_limits: dict[str, float] = {}
 
     for vehicle in app_config.vehicles:
         if not vehicle.enabled:
@@ -279,11 +316,15 @@ def trigger_overload(app_config: AppConfig) -> tuple[bool, str]:
             data.get("state") == "online"
             and data.get("charge_state", {}).get("charging_state") == "Charging"
         ):
+            # Capture the driver's requested limit while it's still visible in
+            # the vehicle data — the downstep below overwrites it immediately.
+            intended_limits[vehicle.id] = _intended_amp_limit(data, vehicle)
             current = float(data["charge_state"]["charger_actual_current"])
             new_limit = round(current * cfg.downStepPercentage)
             new_limit = max(int(vehicle.chargerMinAmps), new_limit)
             try:
                 api.set_charge_amp_limit(new_limit)
+                telemetry_cache.invalidate(vehicle.id)
                 initial_applied = True
             except HTTPException:
                 tsc_logger.exception("Initial downstep failed for %s", vehicle.id)
@@ -293,7 +334,7 @@ def trigger_overload(app_config: AppConfig) -> tuple[bool, str]:
 
     t = threading.Thread(
         target=handle_overload,
-        args=(app_config,),
+        args=(app_config, intended_limits),
         name="tsc_handle_overload_thread",
         daemon=True,
     )
@@ -324,6 +365,9 @@ class _AdjustmentState:
     ramp_up: bool = False
     ramp_up_start: float = 0.0
     at_max_count: int = 0
+    # vehicle id → user's requested amp limit, captured before any reduction so
+    # ramp-up can restore it without overshooting a manual app setting.
+    intended_amperage: dict[str, float] = field(default_factory=dict)
 
 
 def _run_stabilisation_phase(
@@ -431,17 +475,20 @@ def _apply_ramp_up(
         tsc_logger.info("Ramp-up phase max duration reached — ending session.")
         return True
 
-    # Try to increase charge limit for each vehicle
+    # Try to increase charge limit for each vehicle, never past its intended
+    # ceiling so a manual app limit (e.g. 20A) is restored, not overridden.
     for vehicle, api, data in charging:
         current = float(data["charge_state"]["charger_actual_current"])
-        if current >= vehicle.chargerMaxAmps:
+        ceiling = _ramp_up_ceiling(vehicle, state.intended_amperage)
+        if current >= ceiling:
             continue
         step = cfg.upStepPercentage * (vehicle.chargerMaxAmps - vehicle.chargerMinAmps)
-        new_limit = min(current + step, vehicle.chargerMaxAmps)
+        new_limit = min(current + step, ceiling)
         new_limit = max(int(vehicle.chargerMinAmps), math.floor(new_limit))
         if new_limit > math.floor(current):
             try:
                 api.set_charge_amp_limit(new_limit)
+                telemetry_cache.invalidate(vehicle.id)
                 tsc_logger.info(
                     "Ramping up %s: %.0fA → %.0fA",
                     vehicle.name or vehicle.id,
@@ -451,9 +498,10 @@ def _apply_ramp_up(
             except HTTPException:
                 tsc_logger.exception("Failed to ramp up %s", vehicle.id)
 
-    # Check if all vehicles are at their configured max
+    # Check if all vehicles are at their intended ceiling
     all_at_max = all(
-        float(d["charge_state"]["charger_actual_current"]) >= v.chargerMaxAmps - 1.0
+        float(d["charge_state"]["charger_actual_current"])
+        >= _ramp_up_ceiling(v, state.intended_amperage) - 1.0
         for v, _, d in charging
     )
     if all_at_max:
@@ -471,7 +519,9 @@ def _apply_ramp_up(
     return False
 
 
-def handle_overload(app_config: AppConfig) -> None:
+def handle_overload(
+    app_config: AppConfig, intended_limits: dict[str, float] | None = None
+) -> None:
     """
     Top-level overload handler — runs in a dedicated thread.
 
@@ -503,7 +553,7 @@ def handle_overload(app_config: AppConfig) -> None:
         _run_stabilisation_phase(em_ctrl, app_config)
 
         # ── Supervised adjustment loop ───────────────────────────────────────
-        state = _AdjustmentState()
+        state = _AdjustmentState(intended_amperage=intended_limits or {})
         session_start_ts = time.time()
 
         while True:
