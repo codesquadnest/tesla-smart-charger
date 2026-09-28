@@ -1,0 +1,1341 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="index.html">
+      
+      
+        <link rel="next" href="migration.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Quick start - Tesla Smart Charger Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#quick-start" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="Tesla Smart Charger Docs" class="md-header__button md-logo" aria-label="Tesla Smart Charger Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tesla Smart Charger Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Quick start
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/codesquadnest/tesla-smart-charger" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    codesquadnest/tesla-smart-charger
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="quick-start.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quick start
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="migration.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Migrating v1 → v2
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="Tesla Smart Charger Docs" class="md-nav__button md-logo" aria-label="Tesla Smart Charger Docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tesla Smart Charger Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/codesquadnest/tesla-smart-charger" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    codesquadnest/tesla-smart-charger
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick start
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="quick-start.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-tesla-developer-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Tesla developer setup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Tesla developer setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-create-a-tesla-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Create a Tesla application
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-generate-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Generate keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-register-your-app-with-tesla-one-time-partner-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Register your app with Tesla (one-time partner step)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-generate-a-tls-certificate-for-the-http-proxy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Generate a TLS certificate for the HTTP proxy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-start-the-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Start the stack
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Start the stack">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#updating-an-existing-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updating an existing install
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-onboarding-wizard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Onboarding wizard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-settings-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Settings reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Settings reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#energy-monitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energy Monitor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#circuit-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Circuit &amp; Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-vehicle-configured-in-configvehiclesjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Vehicle (configured in config/vehicles.json)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vehicle-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vehicle controls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vehicle controls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enabling-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling them
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#responses-you-may-see" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Responses you may see
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-directory-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Directory layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-running-the-energy-monitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Running the energy monitor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-stopping-the-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Stopping the stack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-local-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Local development
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tesla-http-proxy-keeps-restarting-open-appcertsprivate-keypem-no-such-file-or-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tesla-http-proxy keeps restarting — open /app/certs/private-key.pem: no such file or directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dashboard-shows-502-apiv1status-fails-and-onboarding-refreshes-every-10s" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dashboard shows 502 / /api/v1/status fails, and onboarding "refreshes" every ~10s
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-returns-503-dashboard-not-built" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET / returns 503 — Dashboard not built
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onboarding-never-finishes-keeps-returning-to-step-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onboarding never finishes / keeps returning to Step 1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authorisation-popup-shows-a-static-page-or-not-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authorisation popup shows a static page or "Not Found"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tesla-sign-in-works-but-vehicle-data-commands-fail-proxy-is-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tesla sign-in works but vehicle data / commands fail (proxy is up)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="migration.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating v1 → v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="quick-start">Quick start</h1>
+<p>This guide walks you through installing and configuring Tesla Smart Charger v2.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>Home server or Raspberry Pi with Git and Docker installed.</li>
+<li>Shelly EM (or compatible energy monitor).</li>
+<li>A public HTTPS endpoint you control for hosting the Tesla public key and OAuth
+  callback URL (e.g. a subdomain served by Nginx).</li>
+<li>A Tesla developer account and a registered Tesla application.</li>
+<li>One or more Tesla vehicles.</li>
+</ul>
+<hr />
+<h2 id="1-tesla-developer-setup">1. Tesla developer setup</h2>
+<h3 id="11-create-a-tesla-application">1.1 Create a Tesla application</h3>
+<ol>
+<li>Go to <a href="https://developer.tesla.com">developer.tesla.com</a> and log in.</li>
+<li>Create a new application. You will need:</li>
+<li>A <strong>public hostname</strong> where you can host the public key and callback URL.</li>
+<li>A <strong>callback URL</strong> in the form <code>https://&lt;your-domain&gt;/auth/callback</code>
+     (this should point to your running tesla-smart-charger instance or a
+     reverse-proxy in front of it).</li>
+<li>Copy the <strong>Client ID</strong> — you will enter it in the onboarding wizard.</li>
+<li>Copy the <strong>Client Secret</strong> — needed only for the partner registration step
+   below.</li>
+</ol>
+<h3 id="12-generate-keys">1.2 Generate keys</h3>
+<p>Tesla Fleet API requires a signed ECDH key pair.  The private key stays on your
+server; the public key must be reachable at:</p>
+<pre><code>https://&lt;your-domain&gt;/.well-known/appspecific/com.tesla.3p.public-key.pem
+</code></pre>
+<p><strong>Option A — using Go (tesla-keygen):</strong></p>
+<pre><code class="language-bash">git clone --branch v0.4.1 https://github.com/teslamotors/vehicle-command.git
+cd vehicle-command/cmd/tesla-keygen
+go build ./...
+./tesla-keygen -key-file private-key.pem -keyring-type file -output public-key.pem create
+</code></pre>
+<p><strong>Option B — using Docker (no Go required):</strong></p>
+<pre><code class="language-bash">docker build -f Dockerfile.tesla-keygen -t tesla-keygen:latest .
+docker run --rm -v &quot;$PWD/certs:/app/certs&quot; --name tesla-keygen tesla-keygen:latest
+sudo chown $USER:$USER certs/*
+</code></pre>
+<p>Copy the generated files into the <code>certs/</code> directory at the project root.</p>
+<h3 id="13-register-your-app-with-tesla-one-time-partner-step">1.3 Register your app with Tesla (one-time partner step)</h3>
+<p>Obtain a partner access token, then register your domain with the Fleet API.
+Replace the placeholders below with your actual values.</p>
+<pre><code class="language-bash"># 1 — get a partner token
+curl -s -X POST \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'grant_type=client_credentials' \
+  --data-urlencode &quot;client_id=$CLIENT_ID&quot; \
+  --data-urlencode &quot;client_secret=$CLIENT_SECRET&quot; \
+  --data-urlencode 'scope=openid offline_access user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds' \
+  --data-urlencode &quot;audience=https://fleet-api.prd.eu.vn.cloud.tesla.com&quot; \
+  'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token' | jq -r .access_token
+
+# 2 — register your domain
+curl -s -X POST \
+  -H &quot;Authorization: Bearer $PARTNER_TOKEN&quot; \
+  -H 'Content-Type: application/json' \
+  --data &quot;{\&quot;domain\&quot;: \&quot;https://&lt;your-domain&gt;\&quot;}&quot; \
+  https://fleet-api.prd.eu.vn.cloud.tesla.com/api/1/partner_accounts
+</code></pre>
+<blockquote>
+<p>Change the Fleet API base URL for your region:
+- EU: <code>fleet-api.prd.eu.vn.cloud.tesla.com</code>
+- NA: <code>fleet-api.prd.na.vn.cloud.tesla.com</code>
+- AP: <code>fleet-api.prd.ap.vn.cloud.tesla.com</code></p>
+</blockquote>
+<h3 id="14-generate-a-tls-certificate-for-the-http-proxy">1.4 Generate a TLS certificate for the HTTP proxy</h3>
+<p>The <code>tesla-http-proxy</code> sidecar needs a self-signed certificate.  Replace
+<code>$PROXY_IP</code> with the LAN IP of your server.</p>
+<pre><code class="language-bash">export PROXY_IP=127.0.0.1
+
+openssl req -x509 -nodes -newkey ec \
+  -pkeyopt ec_paramgen_curve:secp521r1 \
+  -pkeyopt ec_param_enc:named_curve \
+  -subj '/CN=localhost' \
+  -keyout certs/tls-key.pem \
+  -out   certs/tls-cert.pem \
+  -sha256 -days 3650 \
+  -addext &quot;subjectAltName = DNS:localhost, IP:$PROXY_IP&quot; \
+  -addext &quot;extendedKeyUsage = serverAuth&quot; \
+  -addext &quot;keyUsage = digitalSignature, keyCertSign, keyAgreement&quot;
+</code></pre>
+<blockquote>
+<p>Avoid the name <code>HTTPS_PROXY</code> here — it is a reserved environment variable that
+tools like <code>curl</code> interpret as a proxy to route requests through.</p>
+</blockquote>
+<hr />
+<h2 id="2-start-the-stack">2. Start the stack</h2>
+<pre><code class="language-bash">git clone https://github.com/codesquadnest/tesla-smart-charger.git
+cd tesla-smart-charger
+
+# Make sure certs/ contains: private-key.pem, public-key.pem, tls-key.pem, tls-cert.pem
+docker compose up --build -d
+</code></pre>
+<p>The dashboard is served at <code>http://&lt;server-ip&gt;:8000</code>.</p>
+<h3 id="updating-an-existing-install">Updating an existing install</h3>
+<pre><code class="language-bash">git pull
+docker compose up -d --build
+</code></pre>
+<p><code>--build</code> is required, not optional: both services are built from source and
+the React dashboard is compiled <em>into</em> the app image, so <code>docker compose up -d</code>
+on its own keeps serving the old bundle.</p>
+<p>Your <code>config/</code>, <code>data/</code> and <code>certs/</code> directories carry over untouched — no
+migration step. After updating, note that the new manual
+<a href="#vehicle-controls">vehicle controls</a> stay locked until you enable Basic Auth.</p>
+<hr />
+<h2 id="3-onboarding-wizard">3. Onboarding wizard</h2>
+<p>On first access the dashboard displays a <strong>10-step setup wizard</strong>.  No manual
+JSON editing is needed.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What you configure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 — Welcome</td>
+<td>Overview</td>
+</tr>
+<tr>
+<td>2 — Region &amp; Voltage</td>
+<td>Tesla Fleet API region (EU / NA / AP) and grid voltage</td>
+</tr>
+<tr>
+<td>3 — Tesla Application</td>
+<td>Client ID, Client Secret, OAuth redirect URI, and HTTP proxy URL (where <code>tesla-http-proxy</code> is reachable)</td>
+</tr>
+<tr>
+<td>4 — Authorize</td>
+<td>Opens Tesla sign-in in a popup; tokens are captured automatically. If your reverse proxy serves a static callback page instead of forwarding to the backend, paste the callback URL manually or use the hash-fallback method</td>
+</tr>
+<tr>
+<td>5 — Select Vehicles</td>
+<td>Pick which vehicles from your Tesla account to manage</td>
+</tr>
+<tr>
+<td>6 — Charger Settings</td>
+<td>Per-vehicle max/min charge amps</td>
+</tr>
+<tr>
+<td>7 — Energy Monitor</td>
+<td>Shelly EM IP address and type — "Test connection" probes the device through the backend (no CORS issues)</td>
+</tr>
+<tr>
+<td>8 — Circuit &amp; Strategy</td>
+<td>Home circuit limit, overload strategy (proportional or priority)</td>
+</tr>
+<tr>
+<td>9 — Security</td>
+<td>HTTP Basic Auth. Optional, but the manual vehicle controls (wake, charge limit, refresh) stay locked until you enable it — see <a href="#vehicle-controls">Vehicle controls</a></td>
+</tr>
+<tr>
+<td>10 — Done</td>
+<td>Review and apply — config is written to <code>config/system.json</code> and <code>config/vehicles.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>After the wizard completes the application is fully operational.</p>
+<hr />
+<h2 id="4-settings-reference">4. Settings reference</h2>
+<p>These settings can be changed after onboarding via the dashboard <strong>Settings</strong> page (<code>GET /api/v1/config</code>) or directly in <code>config/system.json</code>.</p>
+<h3 id="system">System</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>region</code></td>
+<td>Tesla Fleet API region: <code>eu</code>, <code>na</code>, or <code>ap</code>. Matches your vehicle's market.</td>
+</tr>
+<tr>
+<td><code>voltage</code></td>
+<td>Home grid voltage (V). Used to convert power (watts) to current (amps).</td>
+</tr>
+<tr>
+<td><code>hostIp</code></td>
+<td>IP address the API server binds to.</td>
+</tr>
+<tr>
+<td><code>apiPort</code></td>
+<td>TCP port the API server listens on.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="energy-monitor">Energy Monitor</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>energyMonitorType</code></td>
+<td>Hardware model. Currently only <code>shelly_em</code> is supported.</td>
+</tr>
+<tr>
+<td><code>energyMonitorIp</code></td>
+<td>IP address of the energy monitor on the local network.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="circuit-strategy">Circuit &amp; Strategy</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homeMaxAmps</code></td>
+<td>Main breaker or circuit limit (A). Total consumption will not be allowed to exceed this.</td>
+</tr>
+<tr>
+<td><code>overloadStrategy</code></td>
+<td>How to distribute load reduction: <code>proportional</code> (all vehicles equally) or <code>priority</code> (lowest-priority vehicle first).</td>
+</tr>
+<tr>
+<td><code>sleepTimeSecs</code></td>
+<td>Seconds between adjustment steps during an overload event. Lower values react faster but may cause more API calls.</td>
+</tr>
+<tr>
+<td><code>downStepPercentage</code></td>
+<td>First-response factor when overload is detected (0.1–1.0). Current charge amps are multiplied by this (e.g. 0.5 = halve).</td>
+</tr>
+<tr>
+<td><code>upStepPercentage</code></td>
+<td>Factor used when ramping charge back up after overload clears (0.0–1.0). Applied to the amp range (max - min).</td>
+</tr>
+<tr>
+<td><code>maxSessionDuration</code></td>
+<td>Maximum seconds a supervised overload session can run before automatically ending. Prevents the car from staying stuck at a reduced limit.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="per-vehicle-configured-in-configvehiclesjson">Per-Vehicle (configured in <code>config/vehicles.json</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chargerMaxAmps</code></td>
+<td>Maximum charging current (A) for this vehicle. The handler will not exceed this.</td>
+</tr>
+<tr>
+<td><code>chargerMinAmps</code></td>
+<td>Minimum charging current (A). The handler will not reduce below this.</td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>Overload priority (1 = highest). Higher numbers are reduced first in priority mode.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="security">Security</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auth.enabled</code></td>
+<td>Enable HTTP Basic Auth. Required for the manual vehicle controls — see <a href="#vehicle-controls">Vehicle controls</a>. Does <strong>not</strong> protect the rest of the API.</td>
+</tr>
+<tr>
+<td><code>auth.username</code></td>
+<td>Basic Auth username.</td>
+</tr>
+<tr>
+<td><code>auth.passwordHash</code></td>
+<td>Stored password hash (never returned by the API).</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Warning:</strong> Basic Auth covers only the vehicle command endpoints
+(<code>POST /api/v1/vehicles/{id}/wake</code>, <code>/charge-limit</code>, <code>/refresh</code>). Status,
+vehicle CRUD, config and <code>/overload</code> remain open to anyone who can reach the
+API port. Keep the app on a trusted network — enabling Basic Auth is not a
+substitute for that.</p>
+</blockquote>
+<hr />
+<h2 id="vehicle-controls">Vehicle controls</h2>
+<p>The dashboard can wake a car, change its charge limit, and force a telemetry
+refetch. These change your car's physical state, so they are the one part of
+the API that requires authentication — and they <strong>fail closed</strong>: with Basic
+Auth switched off the endpoints refuse the request rather than allowing it.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /api/v1/vehicles/{id}/wake</code></td>
+<td>Asks Tesla to wake the car. Returns <code>202</code> as soon as Tesla accepts — the car takes a few more seconds to come online.</td>
+</tr>
+<tr>
+<td><code>POST /api/v1/vehicles/{id}/charge-limit</code></td>
+<td>Sets the target state of charge. Body: <code>{"percent": 50-100}</code>.</td>
+</tr>
+<tr>
+<td><code>POST /api/v1/vehicles/{id}/refresh</code></td>
+<td>Drops cached telemetry and refetches in the background. Returns <code>202</code>; fresh data arrives on a later poll.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="enabling-them">Enabling them</h3>
+<ol>
+<li><strong>Settings → Security → Edit</strong>, tick <em>Enable Basic Auth</em>, set a username and
+   password, and save.</li>
+<li>On the <strong>Dashboard</strong>, a sign-in panel appears above the vehicle cards. Enter
+   the same credentials to unlock the controls.</li>
+</ol>
+<p>Credentials are held for that browser tab only and cleared when you close it,
+so each new tab signs in again. Use the <strong>Lock</strong> button to sign out early.</p>
+<p>Leaving Basic Auth off is a supported choice — the energy monitor and automatic
+overload handling work exactly the same either way. You simply get no manual
+controls, and each card shows <em>Controls locked</em>.</p>
+<h3 id="responses-you-may-see">Responses you may see</h3>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>403</code></td>
+<td>Basic Auth is not enabled — nothing to sign in to. Turn it on in Settings.</td>
+</tr>
+<tr>
+<td><code>401</code></td>
+<td>Missing or wrong credentials.</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>The car refused the command, usually because it is asleep. Wake it and retry.</td>
+</tr>
+<tr>
+<td><code>408</code></td>
+<td>The car did not answer in time — normal when it is asleep.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-directory-layout">5. Directory layout</h2>
+<pre><code>tesla-smart-charger/
+├── config/
+│   ├── system.json     ← system-wide settings (written by wizard)
+│   └── vehicles.json   ← per-vehicle credentials &amp; settings (written by wizard)
+├── data/               ← SQLite event database
+└── certs/              ← TLS + vehicle command keys
+</code></pre>
+<p>These directories are mounted as Docker volumes so data survives container
+rebuilds.</p>
+<hr />
+<h2 id="5-running-the-energy-monitor">5. Running the energy monitor</h2>
+<p>The energy monitor (Shelly EM poller) is enabled by the <code>-m</code> / <code>--monitor</code> flag.</p>
+<ul>
+<li><strong>Docker:</strong> it is <strong>already enabled</strong> — the image's default command is
+  <code>tesla-smart-charger --monitor --verbose</code>, so no action is needed.</li>
+<li><strong>Running directly with <code>uv</code>:</strong> pass the flag yourself:</li>
+</ul>
+<p><code>bash
+  uv run tesla-smart-charger -m</code></p>
+<p>When consumption exceeds <code>homeMaxAmps</code>, the monitor triggers overload handling
+directly (throttling charging vehicles); no internal HTTP call is made.</p>
+<hr />
+<h2 id="6-stopping-the-stack">6. Stopping the stack</h2>
+<pre><code class="language-bash">docker compose down
+</code></pre>
+<hr />
+<h2 id="7-local-development">7. Local development</h2>
+<p>A <code>docker-compose.override.example.yml</code> is included for rapid development.  It
+replaces the static dashboard bundle with a live Vite dev server (port 5173)
+and runs the Python backend with <code>--reload</code>.  Copy it to the (git-ignored)
+<code>docker-compose.override.yml</code>, which Compose then merges automatically:</p>
+<pre><code class="language-bash">cp docker-compose.override.example.yml docker-compose.override.yml
+docker compose up       # backend + dashboard only — no certs needed
+# Dashboard hot-reload: http://localhost:5173
+# API:                  http://localhost:8000
+</code></pre>
+<p>The dev override puts <code>tesla-http-proxy</code> behind a <strong><code>proxy</code> profile</strong>, so it is
+<strong>not started by default</strong> — you can build the UI and walk through onboarding
+Steps 1–4 with no certificates at all. When you need the proxy (Step 5 onward),
+generate certs into <code>certs/</code> (see <a href="#12-generate-keys">§1.2</a> and
+<a href="#14-generate-a-tls-certificate-for-the-http-proxy">§1.4</a>) and start it too:</p>
+<pre><code class="language-bash">docker compose --profile proxy up
+</code></pre>
+<blockquote>
+<p>Requires Docker Compose ≥ 2.24 (for the <code>!reset</code> tag used to drop the proxy
+dependency in dev).</p>
+</blockquote>
+<p>Or run the services separately without Docker:</p>
+<pre><code class="language-bash"># Terminal 1 — backend
+uv run tesla-smart-charger -m
+
+# Terminal 2 — dashboard
+cd dashboard
+npm install
+npm run dev             # http://localhost:5173
+</code></pre>
+<p>Vite proxies <code>/api</code>, <code>/auth</code>, and <code>/overload</code> to the backend, so no CORS
+configuration is needed during development. The proxy target defaults to
+<code>http://localhost:8000</code> and can be overridden with the <code>VITE_API_PROXY_TARGET</code>
+environment variable — the <code>docker-compose.override.yml</code> sets it to
+<code>http://tesla-smart-charger:8000</code> so the dashboard container reaches the backend
+container (inside Docker, <code>localhost</code> would point at the dashboard container
+itself).</p>
+<hr />
+<h2 id="8-troubleshooting">8. Troubleshooting</h2>
+<h3 id="tesla-http-proxy-keeps-restarting-open-appcertsprivate-keypem-no-such-file-or-directory"><code>tesla-http-proxy</code> keeps restarting — <code>open /app/certs/private-key.pem: no such file or directory</code></h3>
+<p>The proxy can't find its certificates. It needs <strong>four</strong> files in <code>certs/</code>:
+<code>private-key.pem</code>, <code>public-key.pem</code> (see <a href="#12-generate-keys">§1.2</a>) and
+<code>tls-key.pem</code>, <code>tls-cert.pem</code> (see <a href="#14-generate-a-tls-certificate-for-the-http-proxy">§1.4</a>).
+Generate all four, then <code>docker compose up -d tesla-http-proxy</code>. Certificates are
+<strong>not</strong> committed to the repo, so they must be generated on each host that runs
+the stack.</p>
+<p>In <strong>dev</strong>, you can avoid this entirely: the dev override keeps the proxy behind
+the <code>proxy</code> profile, so <code>docker compose up</code> starts backend + dashboard only (no
+certs needed). Add <code>--profile proxy</code> once you need the proxy — see
+<a href="#7-local-development">§7</a>.</p>
+<h3 id="dashboard-shows-502-apiv1status-fails-and-onboarding-refreshes-every-10s">Dashboard shows <code>502</code> / <code>/api/v1/status</code> fails, and onboarding "refreshes" every ~10s</h3>
+<p>The dashboard polls <code>GET /api/v1/status</code> every 10 seconds; a <code>502</code> means the
+browser (or Vite's dev proxy) can't reach the backend on port <code>8000</code>.</p>
+<ul>
+<li><strong>Production:</strong> confirm the <code>tesla-smart-charger</code> container is up and healthy
+  (<code>docker compose ps</code>, <code>docker compose logs tesla-smart-charger</code>).</li>
+<li><strong>Dev (Vite in its own container):</strong> ensure <code>VITE_API_PROXY_TARGET</code> points at
+  the backend <strong>service</strong> (<code>http://tesla-smart-charger:8000</code>), not <code>localhost</code> —
+  see <a href="#7-local-development">§7</a>. <code>localhost:8000</code> inside the dashboard container
+  is the dashboard itself.</li>
+</ul>
+<h3 id="get-returns-503-dashboard-not-built"><code>GET /</code> returns <code>503 — Dashboard not built</code></h3>
+<p>The backend serves the compiled dashboard from <code>dashboard/dist/</code>. Build it
+(<code>cd dashboard &amp;&amp; npm install &amp;&amp; npm run build</code>) or use Docker, which builds it
+automatically. Without a build there is no SPA to serve.</p>
+<h3 id="onboarding-never-finishes-keeps-returning-to-step-1">Onboarding never finishes / keeps returning to Step 1</h3>
+<p>Onboarding is only marked complete after <strong>all</strong> of Step 10's writes succeed
+(system config → vehicles → auth → <code>configured: true</code>). If Step 10 shows an
+error, fix that cause and re-apply — the app intentionally does not mark itself
+configured on a partial save. A transient status-fetch failure alone no longer
+forces you back into the wizard.</p>
+<p>If clicking "Go to Dashboard" redirects back to <code>/onboarding</code>, the status query
+may still return stale cached data. The fix awaits the refetch before navigating
+— rebuild the dashboard image if you're on an older build.</p>
+<h3 id="authorisation-popup-shows-a-static-page-or-not-found">Authorisation popup shows a static page or "Not Found"</h3>
+<p>Your reverse proxy may serve a static file for the callback URL instead of
+forwarding to the backend. When the popup cannot reach
+<code>/auth/callback</code> on the backend, Step 4 provides a <strong>manual paste</strong> fallback:
+copy the callback URL from the popup's address bar, paste it into the input
+field, and click "Verify". The backend extracts the OAuth code and issuer
+from the URL and completes the exchange.</p>
+<h3 id="tesla-sign-in-works-but-vehicle-data-commands-fail-proxy-is-up">Tesla sign-in works but vehicle data / commands fail (proxy is up)</h3>
+<p>Getting tokens (Step 4) talks to Tesla directly, but reading vehicle data and
+sending charge commands go through <code>tesla-http-proxy</code>, which requires your
+<strong>public key to be hosted</strong> at
+<code>https://&lt;your-domain&gt;/.well-known/appspecific/com.tesla.3p.public-key.pem</code> and
+your <strong>domain registered</strong> with the Fleet API — see
+<a href="#12-generate-keys">§1.2</a> and <a href="#13-register-your-app-with-tesla-one-time-partner-step">§1.3</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.path", "navigation.instant", "navigation.top", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
