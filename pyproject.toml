@@ -119,10 +119,8 @@ legacy_tox_ini = """
         uv run --active pytest --cov=tesla_smart_charger --cov-report=term-missing
     
     [testenv:lint]
-    deps =
-        ruff==0.17.2
     commands =
-        ruff check tesla_smart_charger tests
+        uv run --active ruff check tesla_smart_charger tests
     
     [testenv:docs]
     deps =
